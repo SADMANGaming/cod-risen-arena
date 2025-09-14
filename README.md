@@ -21,5 +21,12 @@ This mod brings extra stuffs to the game.
 
 ---
 
+## 📞 Contact
+[devCoD Discord](https://discord.gg/6KrD3bY7CQ)
+
+Discord Account: **.sadman_**
+
+---
+
 ## 🙌 Credits  
 - To be added
