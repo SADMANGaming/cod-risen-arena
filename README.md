@@ -12,7 +12,7 @@ This mod brings extra stuffs to the game.
 ---
 
 ## ✨ Features  
-- Will be revealed 
+- To be revealed 
 
 ---
 
@@ -22,4 +22,4 @@ This mod brings extra stuffs to the game.
 ---
 
 ## 🙌 Credits  
-- Empty
+- To be added
