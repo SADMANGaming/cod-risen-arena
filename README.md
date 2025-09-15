@@ -12,7 +12,24 @@ This mod brings extra stuffs to the game.
 ---
 
 ## ✨ Features  
-- To be revealed 
+* Planned:
+* New engine core features:
+  - Bounce
+  - New cvars 
+  - Auto updater
+  - New masterlist
+  - New protocol (Neither 1.1 or 1.5 clients can't join)
+  - Freeze detection
+  - Some Q3 exploit fixes like (q3dirtrav, q3fill, q3infoboom)
+
+* New assets:
+  - New maps
+  - New UI
+  - New weapons
+  - New multiplayer Features (anti fast fire, Anticamp, etc)
+  - New gametypes
+  - New assets/textures(skies)
+  - ... 
 
 ---
 
