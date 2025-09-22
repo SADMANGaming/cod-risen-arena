@@ -62,4 +62,4 @@ Discord Account: **.sadman_**
 - Download CoD: Risen Arena source code
 - CD to the src\windows-client directory
 - Run build.bat
-### Note: Ignore the warnings(those errors in pink color)
+* Note: Ignore the warnings(those errors in pink color)
