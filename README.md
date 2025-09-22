@@ -18,17 +18,17 @@ This mod brings extra stuffs to the game.
   - New cvars 
   - Auto updater
   - New masterlist
-  - New protocol (Neither 1.1 nor 1.5 clients can't join)
+  - New protocol (Neither 1.1 nor 1.5 clients can't join) ✅
   - Freeze detection
   - Some Q3 exploit fixes like (q3dirtrav, q3fill, q3infoboom)
 
 * New assets:
   - New maps
-  - New UI
-  - New weapons
-  - New multiplayer Features (anti fast fire, Anticamp, etc)
-  - New gametypes
-  - New assets/textures(skies)
+  - New UI ✅
+  - New weapons ✅
+  - New multiplayer Features (anti fast fire, Anticamp, etc) ✅
+  - New gametypes ✅
+  - New assets/textures(skies) ✅
   - ... 
 
 ---
@@ -46,4 +46,8 @@ Discord Account: **.sadman_**
 ---
 
 ## 🙌 Credits  
-- To be added
+- codextended-client
+- ChatGPT
+- c1cx/iw1x-client
+- Quake III Arena
+- Ghidra/IDA
