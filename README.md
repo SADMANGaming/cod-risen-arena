@@ -51,3 +51,15 @@ Discord Account: **.sadman_**
 - c1cx/iw1x-client
 - Quake III Arena
 - Ghidra/IDA
+
+---
+
+## ❓ How to compile
+ ### Windows:
+- Instal MinGW-w64 by Brecht Sanders [winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2](https://github.com/brechtsanders/winlibs_mingw/releases/download/14.2.0posix-19.1.1-12.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2.zip)
+- Extract the archive and copy the path of bin directory (Example: C:\mingw32\bin)
+- Add the directory in environment variables
+- Download CoD: Risen Arena source code
+- CD to the src\windows-client directory
+- Run build.bat
+### Note: Ignore the warnings(those errors in pink color)
