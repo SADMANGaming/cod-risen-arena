@@ -16,7 +16,7 @@ void Sys_Unload() {
 	bClosing = true;
 	static bool unloaded = false;
     
-    std::filesystem::remove("__CoDMP");
+    //std::filesystem::remove("__CoDMP");
 
 	if (unloaded)
 		return;
@@ -53,9 +53,9 @@ LONG WINAPI CrashHandler(EXCEPTION_POINTERS* ExceptionInfo)
 
 void apply_hooks()
 {
-	if(g_vanilla->integer == 1)
-		Com_Printf("Vanilla mode enabled, skipping hooks.\n");
-		return;
+	//if(g_vanilla->integer == 1)
+		//Com_Printf("Vanilla mode enabled, skipping hooks.\n");
+		//return;
 
 	memset((void*)0x5083b1, 0x00, 1);
 
@@ -170,4 +170,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		return 0;
 
 	return mainx(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
+
 }
