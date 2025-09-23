@@ -17,7 +17,7 @@ This mod brings extra stuffs to the game.
   - Bounce
   - New cvars 
   - Auto updater
-  - New masterlist
+  - New masterlist ✅
   - New protocol (Neither 1.1 nor 1.5 clients can't join) ✅
   - Freeze detection
   - Some Q3 exploit fixes like (q3dirtrav, q3fill, q3infoboom)
