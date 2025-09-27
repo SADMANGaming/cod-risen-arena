@@ -1,0 +1,2 @@
+void InitFreezeDetection();
+void OnFrame();
