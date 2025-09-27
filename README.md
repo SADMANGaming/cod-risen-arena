@@ -64,3 +64,8 @@ Discord Account: **.sadman_**
 - CD to the src\windows-client directory
 - Run build.bat
 * Note: Ignore the warnings(those errors in pink color)
+
+---
+
+## Icon
+<img src="./codra_icon.png">
