@@ -1,5 +1,13 @@
 #include <filesystem>
 
+#define ASM__call(func) \
+    __asm__ volatile("call *%0\n" : : "m"(func) : \
+        "memory", "cc", \
+        "eax", "ebx", "ecx", "edx", "esi", "edi", /*"ebp",*/ /*"esp",*/ \
+        "st","st(1)","st(2)","st(3)", "st(4)","st(5)","st(6)","st(7)", \
+        "xmm0","xmm1","xmm2","xmm3", "xmm4","xmm5","xmm6","xmm7")
+#define RETURN_VOID
+
 #ifdef _WIN32
 #define JUNK_CODE_ONE        \
     __asm{push eax}            \

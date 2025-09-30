@@ -39,15 +39,59 @@ void sub_40E2B0()
 }
 
 void Cmd_Ban() {
-    // Get the HWID from the command arguments
-    const char* hwid = Cmd_Argv(1);
-    if (hwid && hwid[0] != '\0') {
-        banHWID(hwid);
-        Com_Printf("HWID %s has been banned.\n", hwid);
-    } else {
-        Com_Printf("Usage: ban <hwid>\n");
+    const char* arg = Cmd_Argv(1);
+    const char* reason = Cmd_Argv(2);
+    if (!arg || arg[0] == '\0') {
+        Com_Printf("Usage: ban <client id>\n");
+        return;
     }
+
+    int cl = atoi(arg);
+    if (cl > 0) {
+        Com_Printf("Invalid client id: %s\n", arg);
+        return;
+    }
+
+    client_t* client = SV_GetPlayerByNum();
+    if (!client) {
+        Com_Printf("Client with id %d not found.\n", cl);
+        return;
+    }
+
+    const char* hwid = Info_ValueForKey(client->userinfo, "cl_hwid");
+    if (!hwid || hwid[0] == '\0') {
+        Com_Printf("Client %d has no HWID.\n", cl);
+        return;
+    }
+
+    std::string hwidStr(hwid);
+    banHWID(hwidStr);
+    if(reason)
+    {
+        SV_DropClient(client, reason);
+    } else {
+        SV_DropClient(client, NULL);
+    }
+    Com_Printf("Client %d's HWID '%s' has been banned with reason '%s'.\n", reason, hwid);
 }
+
+
+void Cmd_Unban()
+{
+    const char* hwid = Cmd_Argv(1);
+
+
+    if (!hwid || hwid[0] == '\0') {
+        Com_Printf("HWID is wrong.\n");
+        return;
+    }
+
+    std::string hwidStr(hwid);
+    unbanHWID(hwidStr);
+
+    Com_Printf("Client HWID '%s' has been unbanned.\n", hwid);
+}
+
 
 cHook *hook_sv_addoperatorcommands;
 void custom_SV_AddOperatorCommands()
@@ -58,11 +102,10 @@ void custom_SV_AddOperatorCommands()
     SV_AddOperatorCommands();
 
     Cmd_AddCommand("ban", Cmd_Ban);
-//    Cmd_AddCommand("unban", unban);
+    Cmd_AddCommand("unban", Cmd_Unban);
 
     hook_sv_addoperatorcommands->hook();
 }
-
 
 void apply_hooks()
 {
@@ -95,11 +138,26 @@ void apply_hooks()
     __call(0x469E8E, (int)Scr_GetCustomMethod);
     *(BYTE*)(0x469E8E + 5) = 0x90;
     VirtualProtect((void*)0x469E8E, 6, old, &old);
+    // End GSC
+
+    // CoDExtended "bug fixes"
+    	// NOP out the calls to CL_Motd (crash upon startup net not loaded and socket being sent or smth)
+	__nop(0x40F6DA, 0x40F6DA + 5);
+	__nop(0x4117B6, 0x4117B6 + 5);
+	
+	__nop(0x411815, 1);
+
+	/* annoying bugs */
+	__nop(0x42D122, 5); //call Com_AppendCDKey (fixes the invalid cdkey with fs_game)
+	__nop(0x40BC18, 5); //fixes spam with "MAX_PACKET_USERCMDS" if you have 1000 fps
+	__nop(0x43BA04, 5); //Removing second "Need Paks:" because it's useless one is enough
 
 
     __call(0x0042d21a, (int)_FS_Startup);
     __call(0x0042d2d1, (int)_FS_Startup);
     __call(0x0043bb0b, (int)_FS_Startup);
+
+//    __call(0x0042D12A , (int)_FS_AddCommands);
 
     //__call(0x0042ce3c, (int)_FS_Init);
 
@@ -122,6 +180,8 @@ void apply_hooks()
 
 //    void _Com_Frame();
 //    __call(0x046426F, (int)_Com_Frame);
+
+
 
 	void _SV_Init();
     __call(0x00437b34, (int)_SV_Init);
@@ -235,7 +295,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     hInst = hInstance;
 
-    // Custom URL protocol: cod1x://1.2.3.4 to connect to a server.
+    // Custom URL protocol: codra://1.2.3.4 to connect to a server.
+    //from cex
 	std::string strCmdLine = std::string(lpCmdLine);
 	if (strCmdLine.rfind("codra://", 0) == 0) {
 		// Remove cod1x:// and ending slash from string.

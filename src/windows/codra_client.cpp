@@ -4,6 +4,7 @@
 #include "freeze_detector.hpp"
 #include "auto_updater.hpp"
 #include "hwid.hpp"
+#include "hooks.hpp"
 
 cvar_t* cl_running;
 cvar_t* com_cl_running;
@@ -56,7 +57,8 @@ void _CL_Frame(int msec) {
     if (!cl_running->integer)
         return;
 
-    if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted && *cls_state == CA_CONNECTED) {
+
+    if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted) {
         InitFreezeDetection();
         freezeDetectionStarted = true;
     }
@@ -70,10 +72,17 @@ void _CL_Frame(int msec) {
 
 void _Com_Frame()
 {
-    void(*call)();
-    *(DWORD*)&call = 0x437F40;
+    //void(*call)();
+    //*(DWORD*)&call = 0x437F40;
 
-	call();
+	if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted) {
+        InitFreezeDetection();
+        freezeDetectionStarted = true;
+    }
+
+    if (cl_freezeDetect->integer == 1) {
+        OnFrame();
+    }
 }
 
 //0042c250 - FS_AddGameDirectory

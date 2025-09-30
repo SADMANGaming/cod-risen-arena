@@ -32,6 +32,11 @@ DWORD WINAPI FreezeDetector(LPVOID) {
             Sleep(1000);
             continue; // skip detection when not in game
         }
+        if(*cls_state == CA_CHALLENGING || *cls_state == CA_CONNECTING)
+        {
+            Sleep(1000);
+            continue; // skip detection when not in game
+        }
 
         auto now = std::chrono::steady_clock::now();
         auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - lastFrameTime).count();

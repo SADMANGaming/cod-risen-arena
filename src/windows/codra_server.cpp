@@ -1,6 +1,7 @@
 #include "codra_server.hpp"
 #include <fstream>
 #include <string>
+#include <vector>
 
 SV_DirectConnect_t SV_DirectConnect = (SV_DirectConnect_t)0x453390;
 NET_OutOfBandPrint_t NET_OutOfBandPrint = (NET_OutOfBandPrint_t)0x449490;
@@ -36,15 +37,77 @@ bool checkHWIDBan(const std::string& hwidHash) {
     return false;
 }
 
-
 void banHWID(const std::string& hwidHash) {
-    std::ofstream banFile("ban.txt", std::ios::app);
+    std::ifstream banFile("ban.txt");
+    std::vector<std::string> lines;
+    bool alreadyBanned = false;
+
     if (banFile.is_open()) {
-        banFile << hwidHash << "\n";
+        std::string line;
+        while (std::getline(banFile, line)) {
+            if (line.empty()) continue;
+
+            lines.push_back(line);
+
+            if (line == hwidHash) {
+                alreadyBanned = true; // already in ban list
+            }
+        }
         banFile.close();
     }
+
+    if (alreadyBanned) {
+        Com_Printf("banHWID: HWID already banned: %s\n", hwidHash.c_str());
+        return;
+    }
+
+    lines.push_back(hwidHash); // add new banned HWID
+
+    std::ofstream outFile("ban.txt", std::ios::trunc);
+    if (!outFile.is_open()) {
+        Com_Printf("banHWID: Failed to open ban.txt for writing\n");
+        return;
+    }
+
+    for (const auto& l : lines) {
+        outFile << l << "\n";
+    }
+
+    Com_Printf("banHWID: Added HWID to ban list: %s\n", hwidHash.c_str());
 }
 
+
+void unbanHWID(const std::string& hwidHash) {
+    std::ifstream banFile("ban.txt");
+    if (!banFile.is_open()) {
+        Com_Printf("unbanHWID: Failed to open ban.txt\n");
+        return;
+    }
+
+    std::vector<std::string> lines;
+    std::string line;
+
+    // Read all lines except the one we want to remove
+    while (std::getline(banFile, line)) {
+        if (!line.empty() && line != hwidHash) {
+            lines.push_back(line);
+        }
+    }
+    banFile.close();
+
+    // Overwrite the file without the banned HWID
+    std::ofstream outFile("ban.txt", std::ios::trunc);
+    if (!outFile.is_open()) {
+        Com_Printf("unbanHWID: Failed to open ban.txt for writing\n");
+        return;
+    }
+
+    for (const auto& l : lines) {
+        outFile << l << "\n";
+    }
+
+    Com_Printf("unbanHWID: Removed HWID: %s\n", hwidHash.c_str());
+}
 
 void _SVC_DirectConnect(netadr_t from)
 {
@@ -67,10 +130,9 @@ void _SVC_DirectConnect(netadr_t from)
 		Com_Printf("Connection from rejected: HWID banned.\n"/*, NET_AdrToString(from)*/);
 		NET_OutOfBandPrint(NS_SERVER, from, "print\nYour HWID is banned.\n");
 		return; // reject connection
-	} else {
-		Com_Printf("Connection accepted from HWID: %s\n", hwid.c_str());
 	}
 
+	Com_Printf("Connection accepted from HWID: %s\n", hwid.c_str());
 
 	SV_DirectConnect(from);
 }

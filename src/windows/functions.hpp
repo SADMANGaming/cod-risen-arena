@@ -474,6 +474,9 @@ typedef void (*Com_PrintMessage_t)(int channel, const char *message);
 
 typedef xfunction_t (*Scr_GetFunction_t)(const char**, int*);
 typedef xmethod_t   (*Scr_GetMethod_t)(const char**, qboolean*);
+typedef client_t * (*SV_GetPlayerByNum_t)(void);
+typedef void (*SV_DropClient_t)(client_t *drop, const char *reason);
+
 
 extern SL_ConvertToString_t SL_ConvertToString;
 extern Scr_MakeArray_t Scr_MakeArray;
@@ -493,6 +496,9 @@ extern Scr_GetFunction_t Scr_GetFunction;
 extern Scr_GetMethod_t Scr_GetMethod;
 
 extern Com_PrintMessage_t Com_PrintMessage;
+extern SV_GetPlayerByNum_t SV_GetPlayerByNum;
+extern SV_DropClient_t SV_DropClient;
+
 static const int svs_offset = 0x16B2AA0;
 static const int varpub_offset = 0x976468;
 static const int vmpub_offset = 0xA7A508;

@@ -37,7 +37,10 @@ Scr_GetFunction_t Scr_GetFunction = (Scr_GetFunction_t)0x20034C00; //set
 Scr_GetMethod_t Scr_GetMethod = (Scr_GetMethod_t)0x20034D00; //set
 
 Com_PrintMessage_t Com_PrintMessage = (Com_PrintMessage_t)0x435620; //set
+SV_GetPlayerByNum_t SV_GetPlayerByNum = (SV_GetPlayerByNum_t)0x451BA0;
+SV_DropClient_t SV_DropClient = (SV_DropClient_t)0x453D80;
 
+//451BA0 
 ////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>

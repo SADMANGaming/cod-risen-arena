@@ -1,7 +1,7 @@
 #include "file_system.hpp"
 #include "functions.hpp"
 #include <direct.h>
-
+#include "hooks.hpp"
 FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory = (FS_AddPakFilesForGameDirectory_t)0x042bd30;
 FS_AddGameDirectory_t FS_AddGameDirectory = (FS_AddGameDirectory_t)0x042c250;
 FS_Restart_t FS_Restart = (FS_Restart_t)0x0042d2b0;
@@ -24,14 +24,38 @@ void _FS_Startup(const char *gameName)
     const char *fs_basepath = Cvar_VariableString("fs_basepath");
     const char *fs_homepath = Cvar_VariableString("fs_homepath");
 
-    if (fs_basepath[0] && fs_basepath[0] && Q_stricmp(fs_homepath, fs_basepath)) {
-        FS_AddGameDirectory(fs_homepath, "movies", qfalse, 0);
-    }
+	// if(*clc_demoplaying)
+	// {
+	// 	Cvar_Set("fs_game", fs_movies->string);
+	// } else {
+	// 	Cvar_Set ("fs_game", "");
+	// }
+
+	// if(!clc_demoplaying)
+	// {
+	// 	Cvar_Set("fs_game", "");
+	// }
+
+    //if (fs_basepath[0] && fs_basepath[0] && Q_stricmp(fs_homepath, fs_basepath)) {
+        //FS_AddGameDirectory(fs_homepath, "movies", qfalse, 0);
+    //}
 
 	FS_Startup_original(gameName);
 }
 
 
+void _FS_AddCommands() {
+    // Add "movie" folder to search path for IWD files
+    if (*clc_demoplaying) {
+        const char* path = Cvar_VariableString("fs_basepath");
+        const char* dir = "movies";
+		FS_AddGameDirectory(path, dir, qfalse, 0);
+		FS_AddGameDirectory(path, dir, qtrue, 0);
+    }
+	void(*FS_AddCommands)();
+	*(int*)(&FS_AddCommands) = 0x43BA80;
+	FS_AddCommands();
+}
 
 // void _FS_Startup(const char *gameName)
 // {
