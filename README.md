@@ -16,6 +16,8 @@ This mod brings extra stuffs to the game.
 * New engine core features:
   - Bounce
   - New cvars ➖
+  - HWID ✅
+  - New GSC Methods and Functions ➖
   - Auto updater✅
   - New masterlist ✅
   - New protocol (Neither 1.1 nor 1.5 clients can't join) ✅
