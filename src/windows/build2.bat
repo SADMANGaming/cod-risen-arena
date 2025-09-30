@@ -31,8 +31,6 @@ echo ================================================================
 
 rd /s /q objects
 
-copy "C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Dev\risen-arena-1.0.0\bin\mss32.dll" "C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Game" /y
-"C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Game\CoDMP.exe" +set developer 1 +set fs_movies "movies" +set dedicated 2 +set g_gametype bel +map Mp_Harbor
-
 echo BUILDING DONE!
 pause
+
