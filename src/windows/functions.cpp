@@ -10,6 +10,36 @@ Com_Error_t Com_Error = (Com_Error_t)0x435AD0;
 
 Cmd_AddCommand_t Cmd_AddCommand = (Cmd_AddCommand_t)0x428840;
 
+
+
+
+/////////////////// ###### GSC ####### ////////////////////////
+// Scr_ExecThread_t Scr_ExecThread = (Scr_ExecThread_t)0x481E10;
+// Scr_ExecEntThread_t Scr_ExecEntThread = (Scr_ExecEntThread_t)0x481EC0;
+// Scr_FreeThread_t Scr_FreeThread = (Scr_FreeThread_t)0x482070;
+SL_ConvertToString_t SL_ConvertToString = (SL_ConvertToString_t)0x46F7E0; //set
+// Scr_MakeArray_t Scr_MakeArray = (Scr_MakeArray_t)0x483330;
+// Scr_AddArray_t Scr_AddArray = (Scr_AddArray_t)0x483380;
+Scr_Error_t Scr_Error = (Scr_Error_t)0x200A05AC; //set game_mp
+
+Scr_GetNumParam_t Scr_GetNumParam = (Scr_GetNumParam_t)0x200A0534; //set game_mp
+// Scr_GetPointerType_t Scr_GetPointerType = (Scr_GetPointerType_t)0x482FC0;
+Scr_GetType_t Scr_GetType = (Scr_GetType_t)0x47DA20; //set
+
+Scr_AddInt_t Scr_AddInt = (Scr_AddInt_t)0x47DB60; //set
+Scr_AddBool_t Scr_AddBool = (Scr_AddBool_t)0x47DB40; //set
+Scr_AddString_t Scr_AddString = (Scr_AddString_t)0x47DCE0; //set
+Scr_AddVector_t Scr_AddVector = (Scr_AddVector_t)0x47DDB0;	//set
+Scr_AddUndefined_t Scr_AddUndefined = (Scr_AddUndefined_t)0x47DBC0; //set
+Scr_AddEntity_t Scr_AddEntity = (Scr_AddEntity_t)0x483140;
+
+Scr_GetFunction_t Scr_GetFunction = (Scr_GetFunction_t)0x20034C00; //set
+Scr_GetMethod_t Scr_GetMethod = (Scr_GetMethod_t)0x20034D00; //set
+
+Com_PrintMessage_t Com_PrintMessage = (Com_PrintMessage_t)0x435620; //set
+
+////////////////////////////////////////////////////////////////////////
+
 #include <stdio.h>
 char* va(const char* format, ...)
 {
@@ -424,4 +454,135 @@ const char* Com_GametypeName(char* gt, bool colors) { // Keep colors for loading
 		return name;
 	else
 		return (colors) ? gt : Q_CleanStr(gt);
+}
+
+
+
+
+#define DO( src,dest )	  \
+	copy[0] = s[src];	\
+	copy[1] = s[src + 1];	\
+	sscanf( copy, "%x", &val );	  \
+	( (struct sockaddr_ipx *)sadr )->dest = val
+
+qboolean Sys_StringToSockaddr(const char *s, struct sockaddr *sadr) {
+	struct hostent  *h;
+	int val;
+	char copy[MAX_STRING_CHARS];
+
+	memset(sadr, 0, sizeof(*sadr));
+
+	// check for an IPX address
+	// rain - too easy to falsely match a real hostname
+	//	if( ( strlen( s ) == 21 ) && ( s[8] == '.' ) ) {
+	((struct sockaddr_in *)sadr)->sin_family = AF_INET;
+	((struct sockaddr_in *)sadr)->sin_port = 0;
+
+	if (s[0] >= '0' && s[0] <= '9') {
+		*(int *)&((struct sockaddr_in *)sadr)->sin_addr = inet_addr(s);
+	}
+	else {
+		if ((h = gethostbyname(s)) == 0) {
+			return qfalse;
+		}
+		*(int *)&((struct sockaddr_in *)sadr)->sin_addr = *(int *)h->h_addr_list[0];
+	}
+
+	return qtrue;
+}
+
+void SockadrToNetadr(struct sockaddr *s, netadr_t *a) {
+	a->type = NA_IP;
+	*(int *)&a->ip = ((struct sockaddr_in *)s)->sin_addr.s_addr;
+	a->port = ((struct sockaddr_in *)s)->sin_port;
+}
+
+void NetadrToSockadr(netadr_t *a, struct sockaddr *s) {
+	memset(s, 0, sizeof(*s));
+
+	if (a->type == NA_BROADCAST) {
+		((struct sockaddr_in *)s)->sin_family = AF_INET;
+		((struct sockaddr_in *)s)->sin_port = a->port;
+		((struct sockaddr_in *)s)->sin_addr.s_addr = INADDR_BROADCAST;
+	}
+	else if (a->type == NA_IP)    {
+		((struct sockaddr_in *)s)->sin_family = AF_INET;
+		((struct sockaddr_in *)s)->sin_addr.s_addr = *(int *)&a->ip;
+		((struct sockaddr_in *)s)->sin_port = a->port;
+	}
+}
+
+qboolean Sys_StringToAdr(const char *s, netadr_t *a) {
+	struct sockaddr sadr;
+
+	if (!Sys_StringToSockaddr(s, &sadr)) {
+		return qfalse;
+	}
+
+	SockadrToNetadr(&sadr, a);
+	return qtrue;
+}
+
+//tmp relocation
+short   BigShort(short l) {
+	byte b1, b2;
+
+	b1 = l & 255;
+	b2 = (l >> 8) & 255;
+
+	return (b1 << 8) + b2;
+}
+
+qboolean    NET_StringToAdr(const char *s, netadr_t *a) {
+	qboolean r;
+	char base[MAX_STRING_CHARS];
+	char    *port;
+
+	if (!strcmp(s, "localhost")) {
+		memset(a, 0, sizeof(*a));
+		a->type = NA_LOOPBACK;
+		return qtrue;
+	}
+
+	// look for a port number
+	Q_strncpyz(base, s, sizeof(base));
+	port = strstr(base, ":");
+	if (port) {
+		*port = 0;
+		port++;
+	}
+
+	r = Sys_StringToAdr(base, a);
+
+	if (!r) {
+		a->type = NA_BAD;
+		return qfalse;
+	}
+
+	// inet_addr returns this if out of range
+	if (a->ip[0] == 255 && a->ip[1] == 255 && a->ip[2] == 255 && a->ip[3] == 255) {
+		a->type = NA_BAD;
+		return qfalse;
+	}
+
+	if (port) {
+		a->port = BigShort((short)atoi(port));
+	}
+	else {
+		a->port = BigShort(28960);
+	}
+
+	return qtrue;
+}
+
+int Cmd_Argc() {
+	return *(int*)0x8930F0;
+}
+
+char** cmd_argv = (char**)0x890BF0;
+
+char* Cmd_Argv(int index) {
+	if (index >= Cmd_Argc())
+		return "";
+	return cmd_argv[index];
 }

@@ -3,11 +3,14 @@
 #include "codra_client.hpp"
 #include "freeze_detector.hpp"
 #include "auto_updater.hpp"
+#include "hwid.hpp"
 
 cvar_t* cl_running;
 cvar_t* com_cl_running;
 cvar_t* protocol;
 cvar_t* cl_freezeDetect;
+cvar_t* cl_hwid;
+extern cvar_t* fs_basepath;
 
 void _CL_Init(void)
 {
@@ -18,6 +21,8 @@ void _CL_Init(void)
     Cvar_Set("version", va("CoDRA MP 1.00.0 build %d %s %s win-x86", __RABUILD__, __DATE__, __TIME__));
 
 	Cvar_Get("codra-cl", "1", CVAR_USERINFO | CVAR_ROM);
+
+	cl_hwid = Cvar_Get("cl_hwid", generateHWID().c_str(), CVAR_USERINFO | CVAR_ROM);
 
 
 	com_cl_running = Cvar_Get("cl_running", "0", CVAR_ROM);
@@ -32,16 +37,16 @@ void _CL_Init(void)
 	Cmd_AddCommand("update", Cmd_Update);
 }
 
-void _Com_Init()
+void _Com_Init(char *commandLine)
 {
 	Cvar_Get("shortversion", __RAVERSION__, 68);
 	Cvar_Set("shortversion", __RAVERSION__);
 
-
-	void(*Com_Init)(void);
+	void(*Com_Init)(char *commandLine);
 	* (int*)(&Com_Init) = 0x004375c0;
-	Com_Init();
+	Com_Init(commandLine);
 }
+
 
 static bool freezeDetectionStarted = false;
 void _CL_Frame(int msec) {
@@ -51,7 +56,7 @@ void _CL_Frame(int msec) {
     if (!cl_running->integer)
         return;
 
-    if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted) {
+    if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted && *cls_state == CA_CONNECTED) {
         InitFreezeDetection();
         freezeDetectionStarted = true;
     }
@@ -62,3 +67,13 @@ void _CL_Frame(int msec) {
 
     call(msec);
 }
+
+void _Com_Frame()
+{
+    void(*call)();
+    *(DWORD*)&call = 0x437F40;
+
+	call();
+}
+
+//0042c250 - FS_AddGameDirectory

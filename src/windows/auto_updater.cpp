@@ -50,8 +50,10 @@ std::string HttpGet(const char* url) {
 
     return result;
 }
+bool stat_updating = false;
 
 void Cmd_Update() {
+    stat_updating = true;
     std::string json = HttpGet("https://devcod.pages.dev/update/ra/current_ver.json");
     if (json.empty()) {
         MessageBoxA(NULL, "Failed to contact update server.", "Updater", MB_OK | MB_ICONERROR);
@@ -110,6 +112,7 @@ void Cmd_Update() {
             InternetCloseHandle(hInternet);
         }
     }
+    stat_updating = false;
 }
 
 void UnzipWithPowerShell(const char* zipPath, const char* destPath) {

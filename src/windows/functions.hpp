@@ -26,7 +26,7 @@ static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 #define CVAR_UNSAFE         4096    // ydnar: unsafe system cvars (renderer, sound settings, anything that might cause a crash)
 #define CVAR_SERVERINFO_NOUPDATE        8192    // gordon: WONT automatically send this to clients, but server browsers will see it
 
-
+#define MAX_STRINGLENGTH            1024
 #define MAX_STRING_CHARS    1024 // max length of a string passed to Cmd_TokenizeString
 #define MAX_STRING_TOKENS   256 // max tokens resulting from Cmd_TokenizeString
 #define MAX_RELIABLE_COMMANDS 64
@@ -54,6 +54,7 @@ static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 #define clc_stringOffsets ((PINT)0x1434A7C)
 #define cs0 (clc_stringData + clc_stringOffsets[0])
 #define cs1 (clc_stringData + clc_stringOffsets[1])
+#define clc_demoplaying ((PINT)0x15EF004)
 
 #define mouseInitialized ((int*)0x8e2524) //from WinMouseVars_t
 #define mouseActive ((int*)0x8e2520) //from WinMouseVars_t
@@ -300,6 +301,23 @@ struct pmove_t
 	usercmd_t cmd;
 	// some remains
 };
+typedef enum
+{
+    CS_FREE,
+    CS_ZOMBIE,
+    CS_CONNECTED,
+    CS_PRIMED,
+    CS_ACTIVE
+} clientConnectState_t;
+typedef struct client_s
+{
+    clientConnectState_t state;
+    qboolean sendAsActive;
+    const char *dropReason;
+    char userinfo[MAX_INFO_STRING];
+	// ...
+} client_t;
+
 
 typedef void(*Cvar_Set_t)(const char*, const char*);
 typedef cvar_t* (*Cvar_Get_t)(const char*, const char*, int);
@@ -308,6 +326,15 @@ typedef void(*Cvar_Set2_t)(const char*, const char*);
 
 typedef cvar_t* (*Cvar_FindVar_t)(const char*);
 
+typedef void (__cdecl *FS_AddPakFilesForGameDirectory_t)(const char*, const char*);
+extern FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory;
+
+typedef void (*FS_AddGameDirectory_t)(const char*, const char*, qboolean, int);
+extern FS_AddGameDirectory_t FS_AddGameDirectory;
+
+typedef void(*FS_Restart_t)(int);
+extern FS_Restart_t FS_Restart;
+
 extern Cvar_Set_t Cvar_Set;
 extern Cvar_Get_t Cvar_Get;
 extern Cvar_Set2_t Cvar_Set2;
@@ -315,7 +342,7 @@ extern Cvar_Set2_t Cvar_Set2;
 extern Cvar_FindVar_t Cvar_FindVar;
 
 
-
+qboolean    NET_StringToAdr(const char *s, netadr_t *a);
 char* Cvar_VariableString(const char*);
 int Cvar_VariableIntegerValue(const char* var_name);
 float Cvar_VariableValue(const char *var_name);
@@ -333,6 +360,8 @@ extern DWORD game_mp;
 #define GAME_OFF(x) (game_mp + (x - 0x20000000))
 #define CGAME_OFF(x) (cgame_mp + (x - 0x30000000))
 
+char* Cmd_Argv(int index);
+int Cmd_Argc();
 
 typedef void(*Com_Printf_t)(const char*, ...);
 extern Com_Printf_t Com_Printf;
@@ -348,6 +377,130 @@ typedef void(*xfunc)(void);
 typedef void(*Cmd_AddCommand_t)(const char*, xfunc);
 extern Cmd_AddCommand_t Cmd_AddCommand;
 
+typedef void (*SV_DirectConnect_t)(netadr_t from);
+extern SV_DirectConnect_t SV_DirectConnect;
+
+typedef void(*NET_OutOfBandPrint_t)(netsrc_t, netadr_t, const char*, ...);
+extern NET_OutOfBandPrint_t NET_OutOfBandPrint;
+
+///////////// ######## GSC ######## /////////////
+#include <cstdint>
+#define MAX_CLIENTS 64
+typedef unsigned char byte;
+
+typedef struct scr_entref_s
+{
+    uint16_t entnum;
+    uint16_t classnum;
+} scr_entref_t;
+
+union VariableUnion
+{
+    int intValue;
+    float floatValue;
+    unsigned int stringValue;
+    const float *vectorValue;
+    const char *codePosValue;
+    unsigned int pointerValue;
+    //...
+};
+
+typedef struct
+{
+    union VariableUnion u;
+    int type;
+} VariableValue;
+
+typedef struct
+{
+    const char *fieldBuffer;
+    byte pad[0x4176];
+    unsigned int levelId;
+    // ...
+    const char *programBuffer;
+    // ... 
+} scrVarPub_t; // TODO: finish setup
+typedef struct
+{
+    unsigned int *localVars;
+    byte pad[356];
+    VariableValue *top;
+    //...
+} scrVmPub_t; // TODO: verify
+
+typedef void (*xfunction_t)();
+typedef void (*xmethod_t)(scr_entref_t);
+
+typedef struct scr_function_s
+{
+    const char      *name;
+    xfunction_t     call;
+    qboolean        developer;
+} scr_function_t;
+
+typedef struct scr_method_s
+{
+    const char     *name;
+    xmethod_t      call;
+    qboolean       developer;
+} scr_method_t;
+typedef struct
+{
+    qboolean initialized;
+    int time;
+    int snapFlagServerBit;
+    client_t *clients;
+    //...
+} serverStatic_t;
+typedef void *unzFile;
+
+
+
+typedef char* (*SL_ConvertToString_t)(unsigned int);
+typedef void (*Scr_MakeArray_t)();
+typedef void (*Scr_AddArray_t)();
+typedef void (*Scr_Error_t)(const char*);
+typedef int (*Scr_AddFloat_t)(float);
+typedef int (*Scr_AddInt_t)(int);
+typedef int (*Scr_AddBool_t)(bool);
+typedef int (*Scr_AddString_t)(char*);
+typedef int (*Scr_AddVector_t)(vec3_t);
+typedef int (*Scr_AddUndefined_t)();
+typedef void (*Scr_AddEntity_t)(int*);
+typedef int (*Scr_GetNumParam_t)();
+typedef int (*Scr_GetPointerType_t)(int);
+typedef int (*Scr_GetType_t)(int);
+typedef void (*Com_PrintMessage_t)(int channel, const char *message);
+
+typedef xfunction_t (*Scr_GetFunction_t)(const char**, int*);
+typedef xmethod_t   (*Scr_GetMethod_t)(const char**, qboolean*);
+
+extern SL_ConvertToString_t SL_ConvertToString;
+extern Scr_MakeArray_t Scr_MakeArray;
+extern Scr_AddArray_t Scr_AddArray;
+extern Scr_Error_t Scr_Error;
+extern Scr_GetNumParam_t Scr_GetNumParam;
+extern Scr_GetPointerType_t Scr_GetPointerType;
+extern Scr_GetType_t Scr_GetType;
+extern Scr_AddInt_t Scr_AddInt;
+extern Scr_AddBool_t Scr_AddBool;
+extern Scr_AddString_t Scr_AddString;
+extern Scr_AddVector_t Scr_AddVector;
+extern Scr_AddUndefined_t Scr_AddUndefined;
+extern Scr_AddEntity_t Scr_AddEntity;
+
+extern Scr_GetFunction_t Scr_GetFunction;
+extern Scr_GetMethod_t Scr_GetMethod;
+
+extern Com_PrintMessage_t Com_PrintMessage;
+static const int svs_offset = 0x16B2AA0;
+static const int varpub_offset = 0x976468;
+static const int vmpub_offset = 0xA7A508;
+
+#define scrVarPub (*((scrVarPub_t*)( varpub_offset )))
+#define scrVmPub (*((scrVmPub_t*)( vmpub_offset )))
+#define svs (*((serverStatic_t*)( svs_offset )))
+//////////////////////////////////////////////////
 char* va(const char* format, ...);
 
 void Q_strncpyz(char *dest, const char *src, int destsize);
