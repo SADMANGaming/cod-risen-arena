@@ -172,6 +172,10 @@ void apply_hooks()
 
     PatchString(0x0055BD28, "CoDRA Console");
     PatchString(0x0055BD68, "codra.bmp");
+
+    // srv is diff ver
+    std::string patchString = std::string("RA ") + __RAVERSION__;
+    memcpy((void*)0x00566C18, patchString.c_str(), patchString.size() + 1); // +1 for null terminator    
     
     __call(0x004375E2, (int)_InitMSG);
     __call(0x00437A5E, (int)_InitMSG);
