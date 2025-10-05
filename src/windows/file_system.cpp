@@ -36,9 +36,18 @@ void _FS_Startup(const char *gameName)
 	// 	Cvar_Set("fs_game", "");
 	// }
 
-    //if (fs_basepath[0] && fs_basepath[0] && Q_stricmp(fs_homepath, fs_basepath)) {
-        //FS_AddGameDirectory(fs_homepath, "movies", qfalse, 0);
-    //}
+	/*if ( fs_basegame->string[0] && !Q_stricmp( gameName, "main" ) && Q_stricmp( fs_basegame->string, gameName ) ) {
+		if (fs_cdpath->string[0]) {
+			FS_AddGameDirectory(fs_cdpath->string, fs_basegame->string);
+		}
+		if (fs_basepath->string[0]) {
+			FS_AddGameDirectory(fs_basepath->string, fs_basegame->string);
+		}
+		if (fs_homepath->string[0] && Q_stricmp(fs_homepath->string,fs_basepath->string)) {
+			FS_AddGameDirectory(fs_homepath->string, fs_basegame->string);
+		}
+	}*/
+
 
 	FS_Startup_original(gameName);
 }
@@ -49,8 +58,8 @@ void _FS_AddCommands() {
     if (*clc_demoplaying) {
         const char* path = Cvar_VariableString("fs_basepath");
         const char* dir = "movies";
-		FS_AddGameDirectory(path, dir, qfalse, 0);
-		FS_AddGameDirectory(path, dir, qtrue, 0);
+		FS_AddGameDirectory(path, dir);
+		FS_AddGameDirectory(path, dir);
     }
 	void(*FS_AddCommands)();
 	*(int*)(&FS_AddCommands) = 0x43BA80;

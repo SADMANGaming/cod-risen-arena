@@ -60,6 +60,9 @@ static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 #define mouseActive ((int*)0x8e2520) //from WinMouseVars_t
 
 
+#define cls_numglobalservers ((int*)0x1565004)
+#define cls_numGlobalServerAddresses ((int*)0x15C1008)
+#define cls_pingUpdateSource ((int*)0x15C9C10)
 
 #define MAX_QPATH 64
 #define MAX_OSPATH 256
@@ -134,6 +137,7 @@ typedef struct
 	unsigned char ipx[10];
 	unsigned short port;
 } netadr_t;
+#define clc_serverAddress (*(netadr_t*)0x015ce86c)
 
 typedef enum
 {
@@ -329,7 +333,7 @@ typedef cvar_t* (*Cvar_FindVar_t)(const char*);
 typedef void (__cdecl *FS_AddPakFilesForGameDirectory_t)(const char*, const char*);
 extern FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory;
 
-typedef void (*FS_AddGameDirectory_t)(const char*, const char*, qboolean, int);
+typedef void (*FS_AddGameDirectory_t)(const char*, const char*);
 extern FS_AddGameDirectory_t FS_AddGameDirectory;
 
 typedef void(*FS_Restart_t)(int);
@@ -382,6 +386,9 @@ extern SV_DirectConnect_t SV_DirectConnect;
 
 typedef void(*NET_OutOfBandPrint_t)(netsrc_t, netadr_t, const char*, ...);
 extern NET_OutOfBandPrint_t NET_OutOfBandPrint;
+
+typedef const char * (*NET_AdrToString_t)(netadr_t a);
+extern NET_AdrToString_t NET_AdrToString;
 
 ///////////// ######## GSC ######## /////////////
 #include <cstdint>

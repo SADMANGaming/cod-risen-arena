@@ -40,6 +40,9 @@ Com_PrintMessage_t Com_PrintMessage = (Com_PrintMessage_t)0x435620; //set
 SV_GetPlayerByNum_t SV_GetPlayerByNum = (SV_GetPlayerByNum_t)0x451BA0;
 SV_DropClient_t SV_DropClient = (SV_DropClient_t)0x453D80;
 
+// not gsc
+NET_AdrToString_t NET_AdrToString = (NET_AdrToString_t)0x00449150;
+
 //451BA0 
 ////////////////////////////////////////////////////////////////////////
 

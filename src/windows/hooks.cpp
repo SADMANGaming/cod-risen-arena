@@ -25,19 +25,7 @@ void cHook::unhook()
     memcpy((void*)from, (void*)oldCode, 5);
 }
 
-uint8_t originalBytes[5];
-void AttachFunction(uintptr_t target, void* detour)
+void PatchString(int addr, const char* str)
 {
-    DWORD oldProtect;
-    VirtualProtect((void*)target, 5, PAGE_EXECUTE_READWRITE, &oldProtect);
-
-    // Save original bytes
-    memcpy(originalBytes, (void*)target, 5);
-
-    // Calculate relative jump
-    intptr_t rel = (intptr_t)detour - (intptr_t)target - 5;
-    *(uint8_t*)target = 0xE9;              // JMP opcode
-    *(int32_t*)((uint8_t*)target + 1) = (int32_t)rel;
-
-    VirtualProtect((void*)target, 5, oldProtect, &oldProtect);
+    memcpy((void*)addr, str, strlen(str)+1);
 }

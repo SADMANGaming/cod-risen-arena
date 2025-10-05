@@ -9,6 +9,8 @@
 #include "auto_updater.hpp"
 #include "gsc.hpp"
 #include <shlwapi.h>
+#include "cgame.hpp"
+#include "discord.hpp"
 #include <string>
 extern "C" bool bClosing = false;
 static int(__stdcall *WinMain_original)(HINSTANCE, HINSTANCE, LPSTR, int) = (int(__stdcall*)(HINSTANCE, HINSTANCE, LPSTR, int))0x4640B0;
@@ -36,84 +38,128 @@ void sub_40E2B0()
 
 	void Sys_Unload();
 	Sys_Unload();
+    CL_DiscordShutdown();
 }
 
-void Cmd_Ban() {
-    const char* arg = Cmd_Argv(1);
-    const char* reason = Cmd_Argv(2);
-    if (!arg || arg[0] == '\0') {
-        Com_Printf("Usage: ban <client id>\n");
-        return;
+
+
+
+
+
+
+
+
+typedef HMODULE(WINAPI* LoadLibraryA_t)(LPCSTR lpLibFileName);
+LoadLibraryA_t orig_LoadLibraryA = NULL;
+
+
+HMODULE WINAPI hLoadLibraryA(LPCSTR lpLibFileName) {
+    HMODULE hModule = orig_LoadLibraryA(lpLibFileName);
+
+    if (!hModule) return NULL;
+
+    DWORD pBase = (DWORD)GetModuleHandle(lpLibFileName);
+    if (pBase) {
+        void Main_UnprotectModule(HMODULE hModule);
+        Main_UnprotectModule(hModule);
+
+        if (strstr(lpLibFileName, "cgame_mp") != NULL) {
+            CG_Init(pBase);
+        }
     }
 
-    int cl = atoi(arg);
-    if (cl > 0) {
-        Com_Printf("Invalid client id: %s\n", arg);
-        return;
-    }
+    return hModule;
+}
 
-    client_t* client = SV_GetPlayerByNum();
-    if (!client) {
-        Com_Printf("Client with id %d not found.\n", cl);
-        return;
-    }
 
-    const char* hwid = Info_ValueForKey(client->userinfo, "cl_hwid");
-    if (!hwid || hwid[0] == '\0') {
-        Com_Printf("Client %d has no HWID.\n", cl);
-        return;
-    }
+// CHATGPT
+BYTE original_bytes[5];
+BYTE* trampoline = NULL; // dynamically allocated
 
-    std::string hwidStr(hwid);
-    banHWID(hwidStr);
-    if(reason)
+void patch_opcode_loadlibrary(void)
+{
+    DWORD oldProtect;
+    BYTE* pLoadLibrary = (BYTE*)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
+
+    if (!pLoadLibrary)
     {
-        SV_DropClient(client, reason);
-    } else {
-        SV_DropClient(client, NULL);
-    }
-    Com_Printf("Client %d's HWID '%s' has been banned with reason '%s'.\n", reason, hwid);
-}
-
-
-void Cmd_Unban()
-{
-    const char* hwid = Cmd_Argv(1);
-
-
-    if (!hwid || hwid[0] == '\0') {
-        Com_Printf("HWID is wrong.\n");
+        printf("Failed to find LoadLibraryA\n");
         return;
     }
 
-    std::string hwidStr(hwid);
-    unbanHWID(hwidStr);
+    printf("LoadLibraryA address: %p\n", pLoadLibrary);
 
-    Com_Printf("Client HWID '%s' has been unbanned.\n", hwid);
+    // Save original bytes
+    memcpy(original_bytes, pLoadLibrary, 5);
+
+    // Allocate trampoline with execute permission
+    trampoline = (BYTE*)VirtualAlloc(NULL, 10, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!trampoline)
+    {
+        printf("Failed to allocate trampoline\n");
+        return;
+    }
+
+    // Copy original bytes into trampoline
+    memcpy(trampoline, original_bytes, 5);
+
+    // Calculate jump back from trampoline+5 to LoadLibraryA+5
+    uintptr_t jump_back_addr = (uintptr_t)(pLoadLibrary + 5);
+    uintptr_t trampoline_jump_src = (uintptr_t)(trampoline + 5);
+    intptr_t rel_jump_back = jump_back_addr - trampoline_jump_src - 5;
+
+    trampoline[5] = 0xE9; // JMP opcode
+    *(DWORD*)(trampoline + 6) = (DWORD)rel_jump_back;
+
+    // Set trampoline function pointer
+    orig_LoadLibraryA = (LoadLibraryA_t)trampoline;
+
+    // Change protection to writable
+    if (!VirtualProtect(pLoadLibrary, 5, PAGE_EXECUTE_READWRITE, &oldProtect))
+    {
+        printf("VirtualProtect failed\n");
+        return;
+    }
+
+    // Calculate relative JMP from LoadLibraryA to hLoadLibraryA
+    uintptr_t hook_addr = (uintptr_t)hLoadLibraryA;
+    uintptr_t loadlib_addr = (uintptr_t)pLoadLibrary;
+    intptr_t rel_addr = hook_addr - loadlib_addr - 5;
+
+    pLoadLibrary[0] = 0xE9; // JMP opcode
+    *(DWORD*)(pLoadLibrary + 1) = (DWORD)rel_addr;
+
+    // Restore original protection
+    if (!VirtualProtect(pLoadLibrary, 5, oldProtect, &oldProtect))
+    {
+        printf("Failed to restore protection\n");
+        return;
+    }
+
+    // Flush CPU instruction cache so CPU executes new code
+    if (!FlushInstructionCache(GetCurrentProcess(), pLoadLibrary, 5))
+    {
+        printf("FlushInstructionCache failed\n");
+        return;
+    }
+
+    printf("Hook installed on LoadLibraryA successfully\n");
 }
 
 
-cHook *hook_sv_addoperatorcommands;
-void custom_SV_AddOperatorCommands()
-{
-    hook_sv_addoperatorcommands->unhook();
-    void (*SV_AddOperatorCommands)();
-    *(int *)&SV_AddOperatorCommands = hook_sv_addoperatorcommands->from;
-    SV_AddOperatorCommands();
-
-    Cmd_AddCommand("ban", Cmd_Ban);
-    Cmd_AddCommand("unban", Cmd_Unban);
-
-    hook_sv_addoperatorcommands->hook();
+void _InitMSG() {
+    Com_Printf("%s %s build %s %s\n", "CODRA", __RAVERSION__, "win-x86", __DATE__);
 }
 
+extern cHook *hook_sv_addoperatorcommands;
 void apply_hooks()
 {
 	memset((void*)0x5083b1, 0x00, 1); // Alt + Tab fix
-
+	patch_opcode_loadlibrary();
 
     __call(0x46319B, (int)sub_40E2B0); //cleanup exit
 	__call(0x528948, (int)WinMain);
+
 
 	// masterlist override
 	//memcpy((void*)0x00566120, "", strlen("")+1);
@@ -123,6 +169,13 @@ void apply_hooks()
 	
     memcpy((void*)0x0563f88, "ra_config_mp.cfg", strlen("ra_config_mp.cfg") + 1);
     memcpy((void*)0x00562784, "exec ra_config_mp.cfg\n", strlen("exec ra_config_mp.cfg\n") + 1);
+
+    PatchString(0x0055BD28, "CoDRA Console");
+    PatchString(0x0055BD68, "codra.bmp");
+    
+    __call(0x004375E2, (int)_InitMSG);
+    __call(0x00437A5E, (int)_InitMSG);
+
 
     // GSC
     DWORD old;
@@ -141,7 +194,7 @@ void apply_hooks()
     // End GSC
 
     // CoDExtended "bug fixes"
-    	// NOP out the calls to CL_Motd (crash upon startup net not loaded and socket being sent or smth)
+    // NOP out the calls to CL_Motd (crash upon startup net not loaded and socket being sent or smth)
 	__nop(0x40F6DA, 0x40F6DA + 5);
 	__nop(0x4117B6, 0x4117B6 + 5);
 	
@@ -158,15 +211,22 @@ void apply_hooks()
     __call(0x0043bb0b, (int)_FS_Startup);
 
 //    __call(0x0042D12A , (int)_FS_AddCommands);
-
-    //__call(0x0042ce3c, (int)_FS_Init);
+//    __call(0x0042ce3c, (int)_FS_Init);
 
     __call(0x0045A9BB, (int)_SVC_DirectConnect);
+
+    // todo: fix client crash when player is already banned and trying to connect to local server
+
 
     // SV_ADdOPFunc 452C50
     hook_sv_addoperatorcommands = new cHook(0x452C50, (int)custom_SV_AddOperatorCommands);
     hook_sv_addoperatorcommands->hook();
 
+    char* __cdecl CL_SetServerInfo_HostnameStrncpy(char*, char*, size_t);
+    __call(0x412A2C, (int)CL_SetServerInfo_HostnameStrncpy);
+    
+	void CL_GlobalServers_f(void);
+    __jmp(0x413890, (int)CL_GlobalServers_f);
 
 	void _Com_Init(char *commandLine);
     __call(0x004641dc, (int)_Com_Init);
@@ -224,6 +284,8 @@ std::string GetExePath()
 	std::string f = std::string(buffer);
 	return f.substr(0, f.find_last_of("\\/"));
 }
+
+
 
 void RegistryAddURLProtocol() {
 	HKEY hkey;

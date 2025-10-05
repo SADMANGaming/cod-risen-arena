@@ -70,6 +70,6 @@ std::string generateHWID() {
     std::string gpu = getGPUInfo();
     std::string mac = getMACAddress();
 
-    std::string combined = cpu + gpu + mac;
+    std::string combined = cpu + gpu/* + mac*/;
     return hashSHA256(combined);
 }
