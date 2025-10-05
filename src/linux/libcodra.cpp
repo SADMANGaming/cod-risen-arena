@@ -713,12 +713,13 @@ class libcodra
         memcpy((void*)0x080CDF8D, "ra_config_mp_server.cfg", strlen("ra_config_mp_server.cfg") + 1);
         memcpy((void*)0x080CF706, "exec ra_config_mp_server.cfg", strlen("exec ra_config_mp_server.cfg") + 1);
         memcpy((void*)0x080CF92D, "ra_config_mp_server.cfg", strlen("ra_config_mp_server.cfg") + 1);
-
-
-    uintptr_t addr = 0x0808C21A;
+        std::string patchString = std::string("RA ") + __RAVERSION__;
+        memcpy((void*)0x080D42ED, patchString.c_str(), patchString.size() + 1); // +1 for null terminator
+        /* *
+    uintptr_t addr = 0x0808C21A; //this mf causing the filter issue
     uint8_t patch[] = { 0x6A, 0x07 }; // PUSH 0x7
     memcpy((void*)addr, patch, sizeof(patch));
-
+*/
     uintptr_t addr2 = 0x0808551B;
     uint8_t patch2[] = { 0x6A, 0x07 }; // PUSH 0x7
     memcpy((void*)addr2, patch2, sizeof(patch2));
