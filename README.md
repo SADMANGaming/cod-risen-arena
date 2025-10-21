@@ -23,6 +23,10 @@ This mod brings extra stuffs to the game.
   - New protocol (Neither 1.1 nor 1.5 clients can't join) ✅
   - Freeze detection✅
   - Some Q3 exploit fixes like (q3dirtrav, q3fill, q3infoboom)
+  - UID based on CD-Key hash ✅
+  - Discord RPC
+  - ``SVC_Status``/``getstatus`` sends UID ➖
+  - ``status`` command now shows UID ➖ 
 
 * New assets:
   - New maps
