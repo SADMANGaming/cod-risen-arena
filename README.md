@@ -24,8 +24,8 @@ This mod brings extra stuffs to the game.
   - Freeze detection✅
   - Some Q3 exploit fixes like (q3dirtrav, q3fill, q3infoboom)
   - UID based on CD-Key hash ✅
-  - Discord RPC
-  - ``SVC_Status``/``getstatus`` sends UID ➖
+  - Discord RPC ✅
+  - ``SVC_Status``/``getstatus`` sends UID ✅
   - ``status`` command now shows UID ➖ 
 
 * New assets:
