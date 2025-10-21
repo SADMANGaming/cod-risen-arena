@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
-#include "libs/sha256.h" // Add your SHA256 header
+#include "libs/sha256.h" //main main main main
 #include <cstdint>
 
 #pragma comment(lib, "iphlpapi.lib")
@@ -73,3 +73,4 @@ std::string generateHWID() {
     std::string combined = cpu + gpu/* + mac*/;
     return hashSHA256(combined);
 }
+
