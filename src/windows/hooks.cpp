@@ -25,7 +25,7 @@ void cHook::unhook()
     memcpy((void*)from, (void*)oldCode, 5);
 }
 
-void PatchString(int addr, const char* str)
+void PatchStr(int addr, const char* str)
 {
     memcpy((void*)addr, str, strlen(str)+1);
 }

@@ -4,20 +4,29 @@
 #include <vector>
 #include "hooks.hpp"
 #include "functions.hpp"
+#include "hwid.hpp"
 
 cvar_t *dedicated;
+cvar_t *protocol;
+cvar_t *sv_hostname;
+
 SV_DirectConnect_t SV_DirectConnect = (SV_DirectConnect_t)0x453390;
 NET_OutOfBandPrint_t NET_OutOfBandPrint = (NET_OutOfBandPrint_t)0x449490;
 
 void _SV_Init()
 {
 	char* v0 = va("%i", 7);
-  	Cvar_Get("protocol", v0, 68); //CVAR_
+  	protocol = Cvar_Get("protocol", v0, 68); //CVAR_
   	Cvar_Set("protocol", v0);
 
 	void(*SV_Init)();
 	* (int*)(&SV_Init) = 0x00459130;
 	SV_Init();
+}
+
+void SV_Init_Hostname()
+{
+    sv_hostname = Cvar_Get("sv_hostname", "CoDRAHost", CVAR_SERVERINFO | CVAR_ARCHIVE);
 }
 
 // HWID BAN LOGIC
@@ -165,7 +174,128 @@ void Cmd_Unban() {
 
     Com_Printf("Client HWID '%s' has been unbanned.\n", hwid);
 }
+extern cvar_t *sv_running;
+extern cvar_t *mapname;
+extern cvar_t *sv_maxclients;
 
+static void SV_zzStatus_f( void )
+{
+	int i, j, l;
+	client_t    *cl;
+	const char      *s;
+	int ping;
+
+	// make sure server is running
+	if ( !sv_running->integer )
+	{
+		Com_Printf( "Server is not running.\n" );
+		return;
+	}
+
+	Com_Printf( "map: %s\n", mapname->string );
+
+	Com_Printf( "num ping uid             name            lastmsg ip\n" );
+	Com_Printf( "--- ---- --------------- --------------- ------- ---------------------\n" );
+	for ( i = 0 ; i < sv_maxclients->integer; i++ )
+	{
+        cl = &svs.clients[i];
+
+        if (!cl)
+            continue;
+
+        if (cl->state != CS_CONNECTED && cl->state != CS_ACTIVE)
+            continue;
+
+		Com_Printf( "%3i ", i ); //num
+		if ( cl->state == CS_CONNECTED )
+		{
+			Com_Printf( "CNCT " );
+		}
+		else if ( cl->state == CS_ZOMBIE )
+		{
+			Com_Printf( "ZMBI " );
+		}
+		else
+		{
+			ping = cl->ping < 9999 ? cl->ping : 9999;
+			Com_Printf( "%4i ", ping );
+		}
+
+		Com_Printf( "%15s ", Info_ValueForKey( cl->userinfo, "cl_uid" ) ); //uid
+		Com_Printf( "%s^7", cl->name );
+		l = 16 - strlen( cl->name );
+		for ( j = 0 ; j < l ; j++ )
+			Com_Printf( " " );
+
+		Com_Printf( "%7i ", svs.time - cl->lastPacketTime );
+
+		s = NET_AdrToString( cl->netchan.remoteAddress );
+		Com_Printf( "%s", s );
+		l = 22 - strlen( s );
+		for ( j = 0 ; j < l ; j++ )
+			Com_Printf( " " );
+
+		Com_Printf( "\n" );
+	}
+	Com_Printf( "\n" );
+}
+
+
+void custom_SVC_Status(netadr_t from)
+{
+    char player[1024];           // single player line buffer
+    char infostring[16384] = {0}; // big server info buffer
+    char keywords[1024];          // keywords buffer
+    char status[16384] = {0};     // big status buffer for all players
+    unsigned int statusLength = 0;
+    size_t playerLength = 0;
+    int i;
+    client_t *cl;
+    const char *g_password;
+    const char *fs_game;
+
+    strcpy(infostring, Cvar_InfoString_RAH(CVAR_SERVERINFO));
+    
+    Info_SetValueForKey(infostring, "challenge", Cmd_Argv(1));
+
+
+    if (Cvar_VariableValue("fs_restrict"))
+    {
+        Com_sprintf(keywords, sizeof(keywords), "demo %s", Info_ValueForKey(infostring, "sv_keywords"));
+        Info_SetValueForKey(infostring, "sv_keywords", keywords);
+    }
+
+    for (i = 0; i < sv_maxclients->integer; i++)
+    {
+        cl = &svs.clients[i];
+        if (cl->state >= CS_CONNECTED)
+        {
+            if (!cl->gentity || !cl->gentity->client || !cl->name)
+                continue; // skip invalid entries
+
+            Com_sprintf(player, sizeof(player), "%i %i \"%s\" \"%s\"\n",
+                cl->gentity->client->sess.score,
+                cl->ping,
+                cl->name,
+                Info_ValueForKey(cl->userinfo, "cl_uid"));
+
+            playerLength = strlen(player);
+            if (statusLength + playerLength >= sizeof(status))
+                break; // avoid overflow
+
+            strcpy(status + statusLength, player);
+            statusLength += playerLength;
+        }
+    }
+    fs_game = Cvar_VariableString("fs_game");
+    g_password = Cvar_VariableString("g_password");
+    Info_SetValueForKey(infostring, "pswrd", va("%i", *g_password ? 1 : 0));
+
+    Info_SetValueForKey(infostring, "fs_game", va("%s", *fs_game ? fs_game : "0"));
+
+    NET_OutOfBandPrint(NS_SERVER, from, "statusResponse\n%s\n%s", infostring, status);
+
+}
 
 
 cHook *hook_sv_addoperatorcommands;
@@ -178,6 +308,8 @@ void custom_SV_AddOperatorCommands()
 
     Cmd_AddCommand("ban", Cmd_Ban);
     Cmd_AddCommand("unban", Cmd_Unban);
+    Cmd_RemoveCommand("status");
+    Cmd_AddCommand("status", SV_zzStatus_f);
 
     hook_sv_addoperatorcommands->hook();
 }
@@ -189,24 +321,50 @@ void _SVC_DirectConnect(netadr_t from)
     	Com_Printf("Connection rejected: Missing userinfo.\n");
     	return;
 	}
-
+    std::string patchString = std::string("RA ") + __RAVERSION__;
 	std::string hwid = Info_ValueForKey(userinfo, "cl_hwid");
-	if (hwid.empty()) {
+    std::string uid = Info_ValueForKey(userinfo, "cl_uid");
+    const char* protocolcl = Info_ValueForKey(userinfo, "protocol");
+
+    if (strcmp(protocolcl, protocol->string) != 0)
+    {
+        Com_Printf("Connection rejected from a client with protocol: %s\n", protocolcl);
+    	NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n", patchString.c_str()) );
+        return;
+    }
+
+	if (hwid.empty())
+    {
 		hwid = "unknown";
 	}
-	if(hwid == "unknown") {
-		Com_Printf("Connection from rejected: No HWID provided.\n"/*, NET_AdrToString(from)*/);
+
+    if(uid.empty())
+    {
+        uid = "unknown";
+    }
+
+	if(hwid == "unknown" || !isValidSHA256(hwid))
+    {
+		Com_Printf("Connection rejected: HWID is wrong.\n"/*, NET_AdrToString(from)*/);
+	    NET_OutOfBandPrint( NS_SERVER, from, "error\nDVCODEXE_INVALIDHWID\x15\n");	
 		return; // reject connection
 	}
 
-	if (checkHWIDBan(hwid)) {
+	if(uid == "unknown")
+    {
+		Com_Printf("Connection rejected: UID is wrong.\n"/*, NET_AdrToString(from)*/);
+	    NET_OutOfBandPrint( NS_SERVER, from, "error\nDVCODEXE_INVALIDUID\x15\n");	
+		return; // reject connection
+	}
+
+	if (checkHWIDBan(hwid))
+    {
 		Com_Printf("Connection from rejected: HWID banned.\n"/*, NET_AdrToString(from)*/);
-		NET_OutOfBandPrint(NS_SERVER, from, "print\nYour HWID is banned.\n");
+	    NET_OutOfBandPrint( NS_SERVER, from, "error\nDVCODEXE_HWIDBANNED\x15\n");	
 		return; // reject connection
 	}
 
-
-	Com_Printf("Connection accepted from HWID: %s\n", hwid.c_str());
+	Com_Printf("Connection accepted from UID: %s\n", uid.c_str());
 
 	SV_DirectConnect(from);
 }

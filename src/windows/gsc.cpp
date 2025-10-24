@@ -15,6 +15,7 @@ scr_method_t scriptMethods[] =
     {"testMethod", gsc_testmethod, qfalse},
     {"getHWID", gsc_player_getHWID, qfalse},
     {"isBannedHWID", gsc_player_isBannedHWID, qfalse},
+    {"getUID", gsc_player_getUID, qfalse},
     {NULL, NULL, qfalse} // Terminator
 };
 

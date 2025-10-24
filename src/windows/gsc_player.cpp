@@ -70,3 +70,37 @@ void gsc_player_isBannedHWID(scr_entref_t ref)
     else
         stackPushBool(qtrue);
 }
+
+
+void gsc_player_getUID(scr_entref_t ref)
+{
+    int id = ref.entnum;
+
+    if ( id >= MAX_CLIENTS )
+    {
+        stackError("gsc_player_getUID() entity %i is not a player", id);
+        stackPushUndefined();
+        return;
+    }
+
+    client_t* client = &svs.clients[id];
+    if (!client) {
+        stackError("gsc_player_getUID() client %i not found", id);
+        stackPushUndefined();
+        return;
+    }
+
+    char* userinfo = client->userinfo;
+    if (!userinfo) {
+        stackError("gsc_player_getUID() userinfo for client %i not found", id);
+        stackPushUndefined();
+        return;
+    }
+
+    std::string uid = Info_ValueForKey(userinfo, "cl_uid");
+    if (uid.empty()) {
+        uid = "unknown";
+    }
+
+    stackPushString(const_cast<char*>(uid.c_str())); 
+}

@@ -9,10 +9,10 @@ Com_Printf_t Com_Printf = (Com_Printf_t)0x4357B0;
 Com_Error_t Com_Error = (Com_Error_t)0x435AD0;
 
 Cmd_AddCommand_t Cmd_AddCommand = (Cmd_AddCommand_t)0x428840;
+Cmd_TokenizeString_t Cmd_TokenizeString = (Cmd_TokenizeString_t)0x4286D0;
 
-
-
-
+idkwhat_t idkwhat = (idkwhat_t)0x4483F0;
+NET_CompareBaseAdr_t NET_CompareBaseAdr = (NET_CompareBaseAdr_t)0x4490C0;
 /////////////////// ###### GSC ####### ////////////////////////
 // Scr_ExecThread_t Scr_ExecThread = (Scr_ExecThread_t)0x481E10;
 // Scr_ExecEntThread_t Scr_ExecEntThread = (Scr_ExecEntThread_t)0x481EC0;
@@ -43,7 +43,11 @@ SV_DropClient_t SV_DropClient = (SV_DropClient_t)0x453D80;
 // not gsc
 NET_AdrToString_t NET_AdrToString = (NET_AdrToString_t)0x00449150;
 
+// Info_SetValueForKey_t Info_SetValueForKey = (Info_SetValueForKey_t)0x44B150; //set game_mp
+// Info_ValueForKey_t Info_ValueForKey = (Info_ValueForKey_t)0x44ADA0;
+Info_SetValueForKey_Big_t Info_SetValueForKey_Big = (Info_SetValueForKey_Big_t)0x44B300;
 //451BA0 
+Cmd_RemoveCommand_t Cmd_RemoveCommand = (Cmd_RemoveCommand_t)0x428990;
 ////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -76,6 +80,7 @@ char* va(const char* format, ...)
 
 	return buf;
 }
+
 
 void __cdecl Com_sprintf(char* dest, int size, const char* fmt, ...)
 {
@@ -329,16 +334,22 @@ void Info_SetValueForKey(char *s, const char *key, const char *value) {
 }
 
 
+char *Cvar_InfoString_RAH(int bit)
+{
+    static char info[MAX_INFO_STRING];
+    char *info_ptr = info;
+    info[0] = 0;
 
+    // traverse using explicit offset
+    for (cvar_t *var = *(cvar_t **)0x0163B404; var; 
+         var = *(cvar_t **)((char *)var + 36)) // 36 = offset of 'next'
+    {
+        if (var->flags & bit && var->name && var->string)
+            Info_SetValueForKey(info, var->name, var->string);
+    }
 
-
-
-
-
-
-
-
-
+    return info;
+}
 
 
 
@@ -591,4 +602,82 @@ char* Cmd_Argv(int index) {
 	if (index >= Cmd_Argc())
 		return "";
 	return cmd_argv[index];
+}
+
+msg_t *MSG_BeginReading(msg_t *msg)
+{
+    msg->readcount = 0;
+    msg->bit = 0;
+    return msg;
+}
+
+
+int MSG_ReadBits(msg_t *msg, int numBits)
+{
+    int result = 0;
+    int bitIndex = 0;
+
+    for (int i = 0; i < numBits; i++)
+    {
+        int byteOffset = msg->bit >> 3;         // which byte
+        int bitOffset  = msg->bit & 7;          // which bit in byte
+
+        if (byteOffset >= msg->cursize)
+            break; // prevent overflow
+
+        int value = (msg->data[byteOffset] >> bitOffset) & 1;
+
+        result |= value << bitIndex;
+
+        bitIndex++;
+        msg->bit++;
+    }
+
+    return result;
+}
+
+
+int MSG_ReadLong( msg_t *msg ) {
+	int	c;
+	
+	c = MSG_ReadBits( msg, 32 );
+	if ( msg->readcount > msg->cursize ) {
+		c = -1;
+	}	
+	
+	return c;
+}
+
+int MSG_ReadByte(msg_t *msg)
+{
+    if (msg->readcount >= msg->cursize)
+        return -1; // no more data
+
+    int value = msg->data[msg->readcount];
+    msg->readcount++;
+    return value & 0xFF; // ensure unsigned byte
+}
+
+
+char *MSG_ReadStringLine( msg_t *msg ) {
+	static char	string[MAX_STRING_CHARS];
+	int		l,c;
+
+	l = 0;
+	do {
+		c = MSG_ReadByte(msg);		// use ReadByte so -1 is out of bounds
+		if (c == -1 || c == 0 || c == '\n') {
+			break;
+		}
+		// translate all fmt spec to avoid crash bugs
+		if ( c == '%' ) {
+			c = '.';
+		}
+		string[l] = c;
+		l++;
+	} while (l < sizeof(string)-1);
+	
+	string[l] = 0;
+	
+	return string;
 }

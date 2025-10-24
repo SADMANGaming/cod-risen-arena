@@ -148,7 +148,7 @@ static void dumpbase(int* base, size_t len, const char *fn) {
 
 	//Com_Printf("Successfully dumped '%s' to location '%s'.\n", fn, dumpbase_path);
 }
-void PatchString(int addr, const char* str);
+void PatchStr(int addr, const char* str);
 void hook_jmp(int from, int to);
 class cHook
 {

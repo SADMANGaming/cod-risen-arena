@@ -3,7 +3,7 @@ title [devCoD - Risen Arena] WINDOWS - DEBUG
 cls
 
 echo BUILDING...
-taskkill /F /IM CoDMP.exe /T
+rem taskkill /F /IM CoDMP.exe /T
 rd /s /q objects
 md objects
 
@@ -36,8 +36,8 @@ echo ================================================================
 
 rd /s /q objects
 
-copy "C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Dev\risen-arena-1.0.0\bin\mss32.dll" "C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Game" /y
-"C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Game\CoDMP.exe" +set developer 1 +set fs_movies "movies" +set dedicated 2 +set g_gametype bel +map Mp_Harbor
+copy "C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Dev\risen-arena-1.0.0\bin\mss32.dll" "C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Call of Duty - Risen Arena" /y
+"C:\Users\SADMAN\Desktop\Call of Duty - Risen Arena\Call of Duty - Risen Arena\CoDMP.exe" +set developer 1 +set fs_movies "movies" +set g_gametype bel 
 
 echo BUILDING DONE!
 pause

@@ -3,11 +3,12 @@
 #include <windows.h>
 #define MAX_MSGLEN 16384
 
-#define gameWindow ((HWND*)0x16C35E8)
-static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 
 #define __RAVERSION__ "1.00.0"
 #define __RABUILD__ 1000   // current client build
+
+#define gameWindow ((HWND*)0x16C35E8)
+static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 
 #define CVAR_ARCHIVE        1   // set to cause it to be saved to vars.rc
 #define CVAR_USERINFO       2   // sent to server on connect or change
@@ -33,6 +34,14 @@ static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 #define MAX_INFO_STRING     1024
 #define MAX_INFO_KEY        1024
 #define MAX_INFO_VALUE      1024
+#define	MAX_NAME_LENGTH     32
+#define MAX_NETNAME                 36
+
+#define MAX_CONFIGSTRINGS           2048
+#define MAX_DOWNLOAD_BLKSIZE        2048
+#define MAX_DOWNLOAD_BLKSIZE_FAST   0x2000 // See https://github.com/ibuddieat/zk_libcod/blob/dff123fad25d7b46d65685e9bca2111c8946a36e/code/declarations.hpp#L60
+#define MAX_DOWNLOAD_WINDOW         8
+#define PACKET_BACKUP 32
 
 #define BIG_INFO_STRING     8192 // used for system info key only
 #define BIG_INFO_KEY        8192
@@ -55,6 +64,7 @@ static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 #define cs0 (clc_stringData + clc_stringOffsets[0])
 #define cs1 (clc_stringData + clc_stringOffsets[1])
 #define clc_demoplaying ((PINT)0x15EF004)
+#define gameInitialized ((int*)0x14073D0)
 
 #define mouseInitialized ((int*)0x8e2524) //from WinMouseVars_t
 #define mouseActive ((int*)0x8e2520) //from WinMouseVars_t
@@ -97,7 +107,7 @@ typedef struct cvar_s
 	float value; // atof( string )
 	int integer; // atoi( string )
 	struct cvar_s* next;
-	struct cvar_s* hashNext;
+	//struct cvar_s* hashNext; //whats that? what is a hashnext?
 } cvar_t;
 
 typedef enum
@@ -138,6 +148,17 @@ typedef struct
 	unsigned short port;
 } netadr_t;
 #define clc_serverAddress (*(netadr_t*)0x015ce86c)
+
+
+typedef struct
+{
+    qboolean overflowed;
+    byte *data;
+    int maxsize;
+    int cursize;
+    int readcount;
+    int bit;
+} msg_t;
 
 typedef enum
 {
@@ -313,15 +334,159 @@ typedef enum
     CS_PRIMED,
     CS_ACTIVE
 } clientConnectState_t;
+
+// typedef struct client_s
+// {
+//     clientConnectState_t state;
+//     qboolean sendAsActive;
+//     const char *dropReason;
+//     char userinfo[MAX_INFO_STRING];
+// 	// ...
+// } client_t;
+
+typedef struct
+{
+    playerState_t ps;
+    int num_entities;
+    int num_clients;
+    int first_entity;
+    int first_client;
+    unsigned int messageSent;
+    unsigned int messageAcked;
+    int messageSize;
+} clientSnapshot_t;
+typedef struct
+{
+    char command[MAX_STRINGLENGTH];
+    int cmdTime;
+    int cmdType;
+} reliableCommands_t;
+typedef struct gclient_s gclient_t;
+typedef struct gentity_s gentity_t;
+typedef enum
+{
+    CON_DISCONNECTED,
+    CON_CONNECTING,
+    CON_CONNECTED
+} clientConnected_t;
+typedef enum
+{
+    STATE_PLAYING,
+    STATE_DEAD,
+    STATE_SPECTATOR,
+    STATE_INTERMISSION
+} sessionState_t;
+typedef struct
+{
+    sessionState_t sessionState;
+    int forceSpectatorClient;
+    int statusIcon;
+    int archiveTime;
+    int score;
+    int deaths;
+    byte gap[4];
+    clientConnected_t connected;
+    usercmd_t cmd;
+    usercmd_t oldcmd;
+    qboolean localClient;
+    byte gap2[8];
+    char netname[MAX_NETNAME];
+    int maxHealth;
+    byte gap3[128];
+} clientSession_t;
+
+struct gclient_s
+{
+    playerState_t ps;
+    clientSession_t sess;
+    int spectatorClient;
+    qboolean noclip;
+    qboolean ufo;
+    byte gap2[228];
+};
+struct gentity_s
+{
+    //entityState_t s;        // 0x0
+    //entityShared_t r;       // 0xF0
+	unsigned char _pad[240];
+	unsigned char _pad2[100];
+
+    byte gap_0x154[0x4];
+
+    gclient_t *client;      // 0x158
+
+    byte gap_0x15C[0x34];
+    int clipmask;           // 0x190
+    byte gap_0x194[0x180];
+};
+// typedef struct gentity_s
+// {
+//     unsigned char _pad[788]; // 200000000000000iq shit lol
+// } gentity_t;
+
+
 typedef struct client_s
 {
     clientConnectState_t state;
     qboolean sendAsActive;
     const char *dropReason;
     char userinfo[MAX_INFO_STRING];
-	// ...
+    reliableCommands_t reliableCommands[MAX_RELIABLE_COMMANDS];
+    int reliableSequence;
+    int reliableAcknowledge;
+    int reliableSent;
+    int messageAcknowledge;
+    int gamestateMessageNum;
+    int challenge;
+    usercmd_t lastUsercmd;
+    int lastClientCommand;
+    char lastClientCommandString[MAX_STRINGLENGTH];
+    gentity_t *gentity;
+	char name[MAX_NAME_LENGTH];
+    char downloadName[MAX_QPATH];
+    fileHandle_t download;
+    int downloadSize;
+    int downloadCount;
+    int downloadClientBlock;
+    int downloadCurrentBlock;
+    int downloadXmitBlock;
+    unsigned char *downloadBlocks[MAX_DOWNLOAD_WINDOW];
+    int downloadBlockSize[MAX_DOWNLOAD_WINDOW];
+    qboolean downloadEOF;
+    int downloadSendTime;
+    int deltaMessage;
+    int nextReliableTime;
+    int lastPacketTime;
+    int lastConnectTime;
+    int nextSnapshotTime;
+    qboolean rateDelayed;
+    int timeoutCount;
+    clientSnapshot_t frames[PACKET_BACKUP];
+    int ping;
+    int rate;
+    int snapshotMsec;
+    int pureAuthentic;
+    netchan_t netchan;
+    unsigned short clscriptid;
+    int bIsTestClient;
+    int serverId;
 } client_t;
 
+
+typedef struct {
+	netadr_t adr; //0
+	int challenge; //20
+	int time; //24
+	int pingTime; //28
+	int firstTime; //32
+	int firstPing; //36
+	int connected; //40
+} challenge_t;
+
+char *Cvar_InfoString_RAH(int bit);
+
+typedef void (*Cmd_RemoveCommand_t)(const char* cmd_name);
+extern Cmd_RemoveCommand_t Cmd_RemoveCommand;
 
 typedef void(*Cvar_Set_t)(const char*, const char*);
 typedef cvar_t* (*Cvar_Get_t)(const char*, const char*, int);
@@ -329,6 +494,12 @@ typedef cvar_t* (*Cvar_Get_t)(const char*, const char*, int);
 typedef void(*Cvar_Set2_t)(const char*, const char*);
 
 typedef cvar_t* (*Cvar_FindVar_t)(const char*);
+
+typedef char* (*Cvar_InfoString_t)(unsigned short bit);
+extern Cvar_InfoString_t Cvar_InfoString;
+
+typedef char* (*Cvar_InfoString_Big_t)(int bit);
+extern Cvar_InfoString_Big_t Cvar_InfoString_Big;
 
 typedef void (__cdecl *FS_AddPakFilesForGameDirectory_t)(const char*, const char*);
 extern FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory;
@@ -344,7 +515,6 @@ extern Cvar_Get_t Cvar_Get;
 extern Cvar_Set2_t Cvar_Set2;
 
 extern Cvar_FindVar_t Cvar_FindVar;
-
 
 qboolean    NET_StringToAdr(const char *s, netadr_t *a);
 char* Cvar_VariableString(const char*);
@@ -389,6 +559,24 @@ extern NET_OutOfBandPrint_t NET_OutOfBandPrint;
 
 typedef const char * (*NET_AdrToString_t)(netadr_t a);
 extern NET_AdrToString_t NET_AdrToString;
+
+typedef void (*Cmd_TokenizeString_t)(const char*, int);
+extern Cmd_TokenizeString_t Cmd_TokenizeString;
+
+typedef void(*idkwhat_t)(msg_t);
+extern idkwhat_t idkwhat;
+
+typedef qboolean (*NET_CompareBaseAdr_t)(netadr_t a, netadr_t b);
+extern NET_CompareBaseAdr_t NET_CompareBaseAdr;
+
+// typedef void (*Info_SetValueForKey_t)(char *s, const char *key, const char *value);
+// extern Info_SetValueForKey_t Info_SetValueForKey;
+
+// typedef char* (*Info_ValueForKey_t)(const char *s, const char *key);
+// extern Info_ValueForKey_t Info_ValueForKey;
+
+typedef void (*Info_SetValueForKey_Big_t)(char *s, const char *key, const char *value);
+extern Info_SetValueForKey_Big_t Info_SetValueForKey_Big;
 
 ///////////// ######## GSC ######## /////////////
 #include <cstdint>
@@ -521,3 +709,7 @@ char* Q_CleanStr(char* string, bool colors = false);
 char* Com_CleanHostname(char* hostname, bool colors);
 char* Com_CleanMapname(char* mapname);
 const char* Com_GametypeName(char* gt, bool colors = false);
+
+int MSG_ReadLong( msg_t *msg );
+char *MSG_ReadStringLine( msg_t *msg );
+msg_t *MSG_BeginReading(msg_t *msg);

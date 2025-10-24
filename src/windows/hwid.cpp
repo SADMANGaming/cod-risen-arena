@@ -4,8 +4,9 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
-#include "libs/sha256.h" //main main main main
+#include "libs/sha256.h" // Add your SHA256 header
 #include <cstdint>
+#include <regex>
 
 #pragma comment(lib, "iphlpapi.lib")
 
@@ -65,6 +66,11 @@ std::string getGPUInfo() {
     return ss.str();
 }
 
+bool isValidSHA256(const std::string& str)
+{
+    return std::regex_match(str, std::regex("^[A-Fa-f0-9]{64}$"));
+}
+
 std::string generateHWID() {
     std::string cpu = getCPUInfo();
     std::string gpu = getGPUInfo();
@@ -73,4 +79,3 @@ std::string generateHWID() {
     std::string combined = cpu + gpu/* + mac*/;
     return hashSHA256(combined);
 }
-

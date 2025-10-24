@@ -12,6 +12,7 @@
 #include "cgame.hpp"
 #include "discord.hpp"
 #include <string>
+
 extern "C" bool bClosing = false;
 static int(__stdcall *WinMain_original)(HINSTANCE, HINSTANCE, LPSTR, int) = (int(__stdcall*)(HINSTANCE, HINSTANCE, LPSTR, int))0x4640B0;
 #pragma comment(lib, "Shlwapi.lib")
@@ -152,6 +153,8 @@ void _InitMSG() {
 }
 
 extern cHook *hook_sv_addoperatorcommands;
+extern cHook *hook_CL_UpdatePacketInfo;
+extern cHook *hook_CL_ConnectionlessPacket;
 void apply_hooks()
 {
 	memset((void*)0x5083b1, 0x00, 1); // Alt + Tab fix
@@ -159,19 +162,19 @@ void apply_hooks()
 
     __call(0x46319B, (int)sub_40E2B0); //cleanup exit
 	__call(0x528948, (int)WinMain);
-
+//    __call(0x00411748, (int)Port_Chng);
 
 	// masterlist override
 	//memcpy((void*)0x00566120, "", strlen("")+1);
     memcpy((void*)0x00566C18, "1.00.0", strlen("1.00.0")+1);
-    memcpy((void*)0x0055dd78, "CoDRAHost", strlen("CoDRAHost")+1);
+    // memcpy((void*)0x0055dd78, "CoDRAHost", strlen("CoDRAHost")+1);
     memcpy((void*)0x0055bd4c, "Call of Duty - Risen Arena", strlen("Call of Duty - Risen Arena")+1);
 	
     memcpy((void*)0x0563f88, "ra_config_mp.cfg", strlen("ra_config_mp.cfg") + 1);
     memcpy((void*)0x00562784, "exec ra_config_mp.cfg\n", strlen("exec ra_config_mp.cfg\n") + 1);
 
-    PatchString(0x0055BD28, "CoDRA Console");
-    PatchString(0x0055BD68, "codra.bmp");
+    PatchStr(0x0055BD28, "CoDRA Console");
+    PatchStr(0x0055BD68, "codra.bmp");
 
     // srv is diff ver
     std::string patchString = std::string("RA ") + __RAVERSION__;
@@ -179,7 +182,6 @@ void apply_hooks()
     
     __call(0x004375E2, (int)_InitMSG);
     __call(0x00437A5E, (int)_InitMSG);
-
 
     // GSC
     DWORD old;
@@ -219,12 +221,28 @@ void apply_hooks()
 
     __call(0x0045A9BB, (int)_SVC_DirectConnect);
 
+    __call(0x004591B3, (int)SV_Init_Hostname);
+
     // todo: fix client crash when player is already banned and trying to connect to local server
+
+
+    // q3infoboom fix
+    *(unsigned char*)(0x00444EA7) = 1;
+
 
 
     // SV_ADdOPFunc 452C50
     hook_sv_addoperatorcommands = new cHook(0x452C50, (int)custom_SV_AddOperatorCommands);
     hook_sv_addoperatorcommands->hook();
+
+
+    void custom_CL_UpdatePacketInfo(netadr_t adr); //412F70
+    hook_CL_UpdatePacketInfo = new cHook(0x412F70, (int)custom_CL_UpdatePacketInfo);
+    hook_CL_UpdatePacketInfo->hook();
+
+    void custom_CL_ConnectionlessPacket(netadr_t from, msg_t* msg);
+    hook_CL_ConnectionlessPacket = new cHook(0x4109D0, (int)custom_CL_ConnectionlessPacket);
+    hook_CL_ConnectionlessPacket->hook();
 
     char* __cdecl CL_SetServerInfo_HostnameStrncpy(char*, char*, size_t);
     __call(0x412A2C, (int)CL_SetServerInfo_HostnameStrncpy);
@@ -246,11 +264,13 @@ void apply_hooks()
 //    __call(0x046426F, (int)_Com_Frame);
 
 
+    __jmp(0x459EE0, (int)custom_SVC_Status);
 
 	void _SV_Init();
     __call(0x00437b34, (int)_SV_Init);
-  
-	
+
+    //__call(0x0045A925, (int)SVC_Status); // original SVC_Status
+
 	constexpr uintptr_t addr = 0x00410490;
     constexpr uint8_t patch[] = { 0x6A, 0x07 }; // PUSH 0x7
 
@@ -276,7 +296,7 @@ void apply_hooks()
         *(uint8_t*)(addr3 + 2) = patch3;
         VirtualProtect((void*)addr3 + 2, 1, oldProtect, &oldProtect);
     }
-    
+
 	void _Check_FS_Bg();
     _Check_FS_Bg();
 }
