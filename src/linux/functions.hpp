@@ -60,6 +60,9 @@ static const Cmd_ArgvBuffer_t Cmd_ArgvBuffer = (Cmd_ArgvBuffer_t)0x0805b27c;
 
 typedef void (*Cmd_TokenizeString_t)(const char *text_in);
 static const Cmd_TokenizeString_t Cmd_TokenizeString = (Cmd_TokenizeString_t)0x0805b398;
+
+typedef void (*Cmd_RemoveCommand_t)(const char* cmd_name);
+static const Cmd_RemoveCommand_t Cmd_RemoveCommand = (Cmd_RemoveCommand_t)0x805AF78;
 ////
 
 //// Com
@@ -132,6 +135,9 @@ static const Cvar_FindVar_t Cvar_FindVar = (Cvar_FindVar_t)0x0806e9b4;
 
 typedef char* (*Cvar_VariableString_t)(const char *cvarName);
 static const Cvar_VariableString_t Cvar_VariableString = (Cvar_VariableString_t)0x0806f8ec;
+
+typedef char* (*Cvar_InfoString_t)(int bit);
+static const Cvar_InfoString_t Cvar_InfoString = (Cvar_InfoString_t)0x0806fc30;
 ////
 
 // SV

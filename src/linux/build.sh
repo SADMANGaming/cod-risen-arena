@@ -53,7 +53,7 @@ fi
 
 echo $separator
 
-mkdir -p ../bin
+mkdir -p ../../bin
 mkdir -p objects
 
 echo "Compiling"

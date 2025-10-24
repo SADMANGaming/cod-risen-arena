@@ -58,6 +58,7 @@ int stackGetParamVector(int param, vec3_t value);
 int stackGetParamFloat(int param, float *value);
 int stackGetParamObject(int param, unsigned int *value);
 
+bool checkHWIDBan(const std::string& hwidHash);
 
 // For tests
 void gsc_testfunction();

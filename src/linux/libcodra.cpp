@@ -10,13 +10,11 @@
 #include <array>
 #include <string>
 #include <fstream>
-
+#include <regex>
 #include "libcodra.hpp"
 
 #include "hooks.hpp"
 #include "shared.hpp"
-
-#define __RAVERSION__ "1.00.0"
 
 // Stock cvars
 cvar_t *com_cl_running;
@@ -37,6 +35,11 @@ cvar_t *sv_rconPassword;
 cvar_t *sv_serverid;
 cvar_t *sv_showAverageBPS;
 cvar_t *sv_showCommands;
+cvar_t *protocol;
+cvar_t *mapname;
+cvar_t *fs_restrict;
+cvar_t *sv_hostname;
+cvar_t *fs_basegame;
 
 // custom
 cvar_t *sv_cracked;
@@ -129,6 +132,8 @@ cHook *hook_Com_Init;
 cHook *hook_SV_AddOperatorCommands;
 cHook *hook_Sys_LoadDll;
 
+#define __RAVERSION__ "1.00.0"
+
 
 // Base time in seconds
 time_t sys_timeBase = 0;
@@ -151,12 +156,27 @@ uint64_t Sys_Milliseconds64(void)
 
 void SV_Init_Protocol()
 {
-  	Cvar_Get("protocol", "7", CVAR_ROM | CVAR_SERVERINFO);
+  	protocol = Cvar_Get("protocol", "7", CVAR_ROM | CVAR_SERVERINFO);
   	Cvar_Set("protocol", "7");
+	//void(*SV_Init)();
+	//* (int*)(&SV_Init) = 0x808a94c;
+	//SV_Init();
+}
 
-	void(*SV_Init)();
-	* (int*)(&SV_Init) = 0x808a94c;
-	SV_Init();
+
+void SV_Init_Hostname()
+{
+    sv_hostname = Cvar_Get("sv_hostname", "CoDRAHost", CVAR_SERVERINFO | CVAR_ARCHIVE);
+}
+
+void _FS_Startup(const char *gameName)
+{
+
+ 	fs_basegame = Cvar_Get("fs_basegame", "ra", CVAR_ROM);
+
+    void(*FS_Startup)(const char *gameName);
+	* (int*)(&FS_Startup) = 0x8061C6C;
+	FS_Startup(gameName);
 }
 
 // See https://github.com/xtnded/codextended/blob/855df4fb01d20f19091d18d46980b5fdfa95a712/src/shared.c#L632
@@ -216,6 +236,9 @@ void custom_Com_Init(char *commandLine)
     sv_serverid = Cvar_FindVar("sv_serverid");
     sv_showAverageBPS = Cvar_FindVar("sv_showAverageBPS");
     sv_showCommands = Cvar_FindVar("sv_showCommands");
+
+    mapname = Cvar_FindVar("mapname");
+    fs_restrict = Cvar_FindVar("fs_restrict");
 
     // Register custom cvars
     Cvar_Get("codra-sv", "1", CVAR_SERVERINFO);
@@ -281,7 +304,14 @@ int custom_G_LocalizedStringIndex(const char *string)
 
 
 // HWID BAN LOGIC
-bool checkHWIDBan(const std::string& hwidHash) {
+bool isValidSHA256(const std::string& str)
+{
+    return std::regex_match(str, std::regex("^[A-Fa-f0-9]{64}$"));
+}
+
+
+bool checkHWIDBan(const std::string& hwidHash)
+{
     std::ifstream banFile("ban.txt");
     if (!banFile.is_open()) {
         std::ofstream createFile("ban.txt"); // get gud
@@ -426,6 +456,69 @@ void Cmd_Unban() {
     Com_Printf("Client HWID '%s' has been unbanned.\n", hwid);
 }
 
+
+static void SV_zzStatus_f( void )
+{
+	int i, j, l;
+	client_t    *cl;
+	const char      *s;
+	int ping;
+
+	// make sure server is running
+	if ( !com_sv_running->integer )
+	{
+		Com_Printf( "Server is not running.\n" );
+		return;
+	}
+
+	Com_Printf( "map: %s\n", mapname->string );
+
+	Com_Printf( "num ping uid             name            lastmsg ip\n" );
+	Com_Printf( "--- ---- --------------- --------------- ------- ---------------------\n" );
+	for ( i = 0,cl = svs.clients ; i < sv_maxclients->integer ; i++,cl++ )
+	{
+        if (!cl)
+            continue;
+
+        if (cl->state != CS_CONNECTED && cl->state != CS_ACTIVE)
+            continue;
+
+
+		Com_Printf( "%3i ", i ); //num
+		if ( cl->state == CS_CONNECTED )
+		{
+			Com_Printf( "CNCT " );
+		}
+		else if ( cl->state == CS_ZOMBIE )
+		{
+			Com_Printf( "ZMBI " );
+		}
+		else
+		{
+			ping = cl->ping < 9999 ? cl->ping : 9999;
+			Com_Printf( "%4i ", ping );
+		}
+
+		Com_Printf( "%15s ", Info_ValueForKey( cl->userinfo, "cl_uid" ) ); //uid
+		Com_Printf( "%s^7", cl->name );
+		l = 16 - strlen( cl->name );
+		for ( j = 0 ; j < l ; j++ )
+			Com_Printf( " " );
+
+		Com_Printf( "%7i ", svs.time - cl->lastPacketTime );
+
+		s = NET_AdrToString( cl->netchan.remoteAddress );
+		Com_Printf( "%s", s );
+		l = 22 - strlen( s );
+		for ( j = 0 ; j < l ; j++ )
+			Com_Printf( " " );
+
+		Com_Printf( "\n" );
+	}
+	Com_Printf( "\n" );
+}
+
+
 void custom_SV_AddOperatorCommands()
 {
     hook_SV_AddOperatorCommands->unhook();
@@ -436,7 +529,11 @@ void custom_SV_AddOperatorCommands()
 
     Cmd_AddCommand("ban", Cmd_Ban);
     Cmd_AddCommand("unban", Cmd_Unban);
+    Cmd_RemoveCommand("status");
+    Cmd_AddCommand("status", SV_zzStatus_f);
 }
+
+
 
 void hook_SVC_DirectConnect(netadr_t from)
 {
@@ -447,29 +544,118 @@ void hook_SVC_DirectConnect(netadr_t from)
 	}
 
 	std::string hwid = Info_ValueForKey(userinfo, "cl_hwid");
+    std::string uid = Info_ValueForKey(userinfo, "cl_uid");
+    const char* protocolcl = Info_ValueForKey(userinfo, "protocol");
+    std::string patchString = std::string("RA ") + __RAVERSION__;
+
+    if (strcmp(protocolcl, protocol->string) != 0)
+    {
+        Com_Printf("Connection rejected from a client with protocol: %s\n", protocolcl);
+    	NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n", patchString.c_str()) );
+        return;
+    }
+
 	if (hwid.empty()) {
 		hwid = "unknown";
 	}
-	if(hwid == "unknown") {
-		Com_Printf("Connection from rejected: No HWID provided.\n"/*, NET_AdrToString(from)*/);
+
+    if(uid.empty())
+    {
+        uid = "unknown";
+    }
+
+	if(hwid == "unknown" || !isValidSHA256(hwid)) {
+		Com_Printf("Connection rejected: HWID is wrong.\n"/*, NET_AdrToString(from)*/);
+	    NET_OutOfBandPrint( NS_SERVER, from, "error\nDVCODEXE_INVALIDHWID\x15\n");	
 		return; // reject connection
 	}
+
+    if(uid == "unknown")
+    {
+        Com_Printf("Connection rejected: Invalid UID.\n"/*, NET_AdrToString(from)*/);
+	    NET_OutOfBandPrint( NS_SERVER, from, "error\nDVCODEXE_INVALIDUID\x15\n");	
+		return; // reject connection
+    }
 
 	if (checkHWIDBan(hwid)) {
 		Com_Printf("Connection from rejected: HWID banned.\n"/*, NET_AdrToString(from)*/);
-		NET_OutOfBandPrint(NS_SERVER, from, "print\nYour HWID is banned.\n");
+	    NET_OutOfBandPrint( NS_SERVER, from, "error\nDVCODEXE_HWIDBANNED\x15\n");	
 		return; // reject connection
 	}
 
 
-	Com_Printf("Connection accepted from HWID: %s\n", hwid.c_str());
+	Com_Printf("Connection accepted from UID: %s\n", uid.c_str());
 
 	SV_DirectConnect(from);
 }
 
 
+void custom_SVC_Status(netadr_t from)
+{
+    char player[MAX_INFO_STRING];
+    char infostring[MAX_INFO_STRING];
+    char keywords[MAX_INFO_STRING];
+    char status[MAX_MSGLEN];
+    int statusLength;
+    size_t playerLength;
+    int i;
+    client_t *cl;
+    char *g_password;
 
 
+    strcpy(infostring, Cvar_InfoString(CVAR_SERVERINFO));
+
+    // sv_hostname = Cvar_FindVar("sv_hostname");
+
+    // if(!strstr(infostring, "sv_hostname") && sv_hostname->string )
+    // {
+    //     Info_SetValueForKey(infostring, "sv_hostname", va("%s", sv_hostname->string));
+    // }
+
+    
+    Info_SetValueForKey(infostring, "challenge", Cmd_Argv(1));
+    
+    if (fs_restrict->string)
+    {
+        Com_sprintf(keywords, sizeof(keywords), "demo %s", Info_ValueForKey(infostring, "sv_keywords"));
+        Info_SetValueForKey(infostring, "sv_keywords", keywords);
+    }
+    
+    status[0] = 0;
+    statusLength = 0;
+    for (i = 0; i < sv_maxclients->integer; i++)
+    {
+        cl = &svs.clients[i];
+        if (cl->state >= CS_CONNECTED)
+        {
+            int clientScore = 0;
+
+            clientScore = cl->gentity->client->sess.score;
+ 
+            Com_sprintf(player, sizeof(player), "%i %i \"%s\" \"%s\"\n",
+            clientScore,
+            cl->ping,
+            cl->name,
+            Info_ValueForKey(cl->userinfo, "cl_uid")
+            );
+            
+            playerLength = strlen(player);
+            if(statusLength + playerLength >= sizeof(status))
+                break;
+
+            strcpy(status + statusLength, player);
+            statusLength += playerLength;
+        }
+    }
+    
+    g_password = Cvar_VariableString("g_password");
+    Info_SetValueForKey(infostring, "pswrd", va("%i", *g_password ? 1 : 0));
+
+    // Inform about fs_game usage, by default for player's convenience
+    Info_SetValueForKey(infostring, "fs_game", va("%s", *fs_game->string ? fs_game->string : "0"));
+
+    NET_OutOfBandPrint(NS_SERVER, from, "statusResponse\n%s\n%s", infostring, status);
+}
 
 
 
@@ -562,6 +748,8 @@ void *custom_Sys_LoadDll(const char *name, char *fqpath, int (**entryPoint)(int,
     
     if(*fs_game->string)
         sprintf(libPath, "%s/game.mp.i386.so", fs_game->string);
+    else if (*fs_basegame->string)
+        sprintf(libPath, "%s/game.mp.i386.so", fs_basegame->string);
     else
         sprintf(libPath, "main/game.mp.i386.so");
     
@@ -697,7 +885,9 @@ class libcodra
         */
         *(unsigned char*)0x808C41F = 0xeb;
 
-        hook_call(0x806cc80, (int)SV_Init_Protocol);
+        //hook_call(0x806cc80, (int)SV_Init_Protocol);
+        hook_call(0x0808A9A4, (int)SV_Init_Protocol);
+
 
         hook_call(0x08085213, (int)hook_AuthorizeState);
         hook_call(0x08094c54, (int)Scr_GetCustomFunction);
@@ -706,9 +896,17 @@ class libcodra
 
         hook_call(0x0806C679, (int)_InitMSG);
 
+        hook_jmp(0x0808bd58, (int)custom_SVC_Status);
+
+        hook_call(0x0806224A, (int)_FS_Startup);
+        hook_call(0x08062532, (int)_FS_Startup);
+        hook_call(0x08071432, (int)_FS_Startup);
+
+        hook_call(0x0808A9ED, (int)SV_Init_Hostname);
+
 
         memcpy((void*)0x080CF69A, "1.00.0", strlen("1.00.0")+1);
-        memcpy((void*)0x080D5620, "CoDRAHost", strlen("CoDRAHost")+1);
+//        memcpy((void*)0x080D5620, "CoDRAHost", strlen("CoDRAHost")+1);
 	
         memcpy((void*)0x080CDF8D, "ra_config_mp_server.cfg", strlen("ra_config_mp_server.cfg") + 1);
         memcpy((void*)0x080CF706, "exec ra_config_mp_server.cfg", strlen("exec ra_config_mp_server.cfg") + 1);
