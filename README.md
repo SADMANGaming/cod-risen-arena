@@ -14,10 +14,9 @@ This mod brings extra stuffs to the game.
 ## ✨ Features  
 * Planned:
 * New engine core features:
-  - Bounce
-  - New cvars ➖
+  - New cvars ✅
   - HWID ✅
-  - New GSC Methods and Functions ➖
+  - New GSC Methods and Functions ✅
   - Auto updater✅
   - New masterlist ✅
   - New protocol (Neither 1.1 nor 1.5 clients can't join) ✅
@@ -26,7 +25,7 @@ This mod brings extra stuffs to the game.
   - UID based on CD-Key hash ✅
   - Discord RPC ✅
   - ``SVC_Status``/``getstatus`` sends UID ✅
-  - ``status`` command now shows UID ➖ 
+  - ``status`` command now shows UID ✅ 
 
 * New assets:
   - New maps
