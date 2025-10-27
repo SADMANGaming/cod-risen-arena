@@ -3,7 +3,7 @@
 #include <direct.h>
 #include "hooks.hpp"
 FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory = (FS_AddPakFilesForGameDirectory_t)0x042bd30;
-FS_AddGameDirectory_t FS_AddGameDirectory = (FS_AddGameDirectory_t)0x042c250;
+FS_AddGameDirectory_t FS_AddGameDirectory = (FS_AddGameDirectory_t)0x42C250;
 FS_Restart_t FS_Restart = (FS_Restart_t)0x0042d2b0;
 
 cvar_t* fs_basegame;
@@ -19,78 +19,51 @@ void _FS_Startup(const char *gameName)
  	fs_basegame = Cvar_Get("fs_basegame", "ra", CVAR_ROM);
 	fs_movies = Cvar_Get("fs_movies", "movies", CVAR_ARCHIVE);
 
-
-    const char *fs_cdpath   = Cvar_VariableString("fs_cdpath");
-    const char *fs_basepath = Cvar_VariableString("fs_basepath");
-    const char *fs_homepath = Cvar_VariableString("fs_homepath");
-
-	// if(*clc_demoplaying)
-	// {
-	// 	Cvar_Set("fs_game", fs_movies->string);
-	// } else {
-	// 	Cvar_Set ("fs_game", "");
-	// }
-
-	// if(!clc_demoplaying)
-	// {
-	// 	Cvar_Set("fs_game", "");
-	// }
-
-	/*if ( fs_basegame->string[0] && !Q_stricmp( gameName, "main" ) && Q_stricmp( fs_basegame->string, gameName ) ) {
-		if (fs_cdpath->string[0]) {
-			FS_AddGameDirectory(fs_cdpath->string, fs_basegame->string);
-		}
-		if (fs_basepath->string[0]) {
-			FS_AddGameDirectory(fs_basepath->string, fs_basegame->string);
-		}
-		if (fs_homepath->string[0] && Q_stricmp(fs_homepath->string,fs_basepath->string)) {
-			FS_AddGameDirectory(fs_homepath->string, fs_basegame->string);
-		}
-	}*/
-
-
 	FS_Startup_original(gameName);
 }
 
+cHook *hook_FS_AddCommands;
+void custom_FS_AddCommands()
+{
 
-void _FS_AddCommands() {
-    // Add "movie" folder to search path for IWD files
-    if (*clc_demoplaying) {
-        const char* path = Cvar_VariableString("fs_basepath");
-        const char* dir = "movies";
-		FS_AddGameDirectory(path, dir);
-		FS_AddGameDirectory(path, dir);
-    }
-	void(*FS_AddCommands)();
-	*(int*)(&FS_AddCommands) = 0x43BA80;
-	FS_AddCommands();
+	if (*clc_demoplaying) {
+		if(fs_movies->string)
+		{
+			const char* fs_basepath = Cvar_VariableString("fs_basepath");
+			FS_AddGameDirectory(fs_basepath, fs_movies->string, qfalse);
+		}
+    } //
+
+	hook_FS_AddCommands->unhook();
+    void (*FS_AddCommands)();
+    *(int *)&FS_AddCommands = hook_FS_AddCommands->from;
+    FS_AddCommands();
+	hook_FS_AddCommands->hook();
+	
+	//0x43BA80
 }
 
-// void _FS_Startup(const char *gameName)
-// {
+cHook *hook_CL_PlayDemo_f;
+void custom_CL_PlayDemo_f()
+{
+    hook_CL_PlayDemo_f->unhook();
+    void (*CL_PlayDemo_f)();
+    *(int *)&CL_PlayDemo_f = hook_CL_PlayDemo_f->from;
+    CL_PlayDemo_f();
+	hook_CL_PlayDemo_f->hook();
+}
 
-// 	char cwd[MAX_OSPATH];
-// 	_getcwd (cwd, sizeof(cwd));
+cHook *hook_CL_DemoCompleted;
+void custom_CL_DemoCompleted()
+{
+    hook_CL_DemoCompleted->unhook();
+    void (*CL_DemoCompleted)();
+    *(int *)&CL_DemoCompleted = hook_CL_DemoCompleted->from;
+    CL_DemoCompleted();
+	hook_CL_DemoCompleted->hook();
 
-// 	fs_basegame = Cvar_Get("fs_basegame", "ra", CVAR_ROM);
-// 	fs_movies = Cvar_Get ("fs_movies", "movies", CVAR_ARCHIVE );
+}
 
-// 	//fs_basepath = Cvar_Get ("fs_basepath", cwd, CVAR_INIT );
-
-// 	const char *fs_cdpath = Cvar_VariableString("fs_cdpath");
-// 	const char *fs_basepath = Cvar_VariableString("fs_basepath");
-// 	const char *fs_homepath = Cvar_VariableString("fs_homepath");
-
-// 	if (fs_basepath[0] && Q_stricmp(fs_homepath,fs_basepath)) {
-// 		FS_AddGameDirectory(fs_homepath, fs_movies->string, qfalse, 0);
-// 		FS_AddGameDirectory(fs_cdpath, fs_movies->string, qtrue, 0);
-// 	}
-	
-
-// 	void(*FS_Startup)(const char *gameName);
-// 	* (int*)(&FS_Startup) = 0x0042cdb0;
-// 	FS_Startup(gameName);
-// }
 
 void _Check_FS_Bg()
 {

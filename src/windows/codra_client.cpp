@@ -58,15 +58,13 @@ void _CL_Init(void)
 
 	cl_uid = Cvar_Get("cl_uid", std::to_string(CL_GetCDKeyHash()).c_str(), CVAR_ARCHIVE | CVAR_ROM | CVAR_USERINFO);
 
-	// UPDATER
-  	//Cvar_Get("cl_updatefiles", &String, 64);
-
 	Cvar_Set("com_hunkmegs", "512");
 
 	Cvar_Set("sv_hostname", "CoDRAHost");
 
 	Cmd_AddCommand("minimize", Cmd_Minimize);
 	Cmd_AddCommand("getautoupdate", Cmd_Update);
+	Cmd_AddCommand("requpdate", CL_UpdateReq);
 
 	if (cg_discord->integer)
 		CL_DiscordInitialize();

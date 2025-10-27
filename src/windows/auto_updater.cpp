@@ -12,27 +12,34 @@ const char* updateAvailableNumber = NULL;
 const char* files;
 int isUpdateablevar;
 netadr_t autoUpdater_adr;
+int checkingForUpdate = 0;
 
 void CL_UpdateReq() //Run in Com_Init or somewhere???????????
 {
     char command[1024];
+    checkingForUpdate = 1;
+
     Com_Printf("Auto-Updater: Checking for updates...\n");
 
-    if (!NET_StringToAdr("0.0.0.0:20560", &autoUpdater_adr)) {
+    if (!NET_StringToAdr("raupdate.duckdns.org", &autoUpdater_adr)) {
         Com_Printf("Auto-Updater: Couldn't resolve auto updater URL\n");
         return;
     }
     
+    //autoUpdater_adr.type = NA_IP;
+    short BigShort(short);
+	autoUpdater_adr.type = NA_IP;
+	autoUpdater_adr.port = BigShort(20560);
+
+    
     Com_Printf("Auto-Updater resolved to %d.%d.%d.%d:%d\n",
                autoUpdater_adr.ip[0], autoUpdater_adr.ip[1], autoUpdater_adr.ip[2], autoUpdater_adr.ip[3], 
                ntohs(autoUpdater_adr.port));
-    
-
-    autoUpdater_adr.type = NA_IP;
 
     sprintf(command, "getUpdateInfo \"%s\" \"win-x86\" \"client\"", __RAVERSION__);
     
     NET_OutOfBandPrint(NS_CLIENT, autoUpdater_adr, command);
+    checkingForUpdate = 0;
 }
 
 

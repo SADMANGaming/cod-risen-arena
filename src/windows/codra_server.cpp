@@ -9,6 +9,7 @@
 cvar_t *dedicated;
 cvar_t *protocol;
 cvar_t *sv_hostname;
+cvar_t *sv_cracked;
 
 SV_DirectConnect_t SV_DirectConnect = (SV_DirectConnect_t)0x453390;
 NET_OutOfBandPrint_t NET_OutOfBandPrint = (NET_OutOfBandPrint_t)0x449490;
@@ -18,6 +19,7 @@ void _SV_Init()
 	char* v0 = va("%i", 7);
   	protocol = Cvar_Get("protocol", v0, 68); //CVAR_
   	Cvar_Set("protocol", v0);
+    sv_cracked = Cvar_Get("sv_cracked", "0", CVAR_ARCHIVE);
 
 	void(*SV_Init)();
 	* (int*)(&SV_Init) = 0x00459130;
@@ -27,6 +29,14 @@ void _SV_Init()
 void SV_Init_Hostname()
 {
     sv_hostname = Cvar_Get("sv_hostname", "CoDRAHost", CVAR_SERVERINFO | CVAR_ARCHIVE);
+}
+
+const char* hook_AuthorizeState(int arg)
+{
+    const char* s = Cmd_Argv(arg);
+    if(sv_cracked->integer && !strcmp(s, "deny"))
+        return "accept";
+    return s;
 }
 
 // HWID BAN LOGIC

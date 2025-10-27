@@ -504,7 +504,7 @@ extern Cvar_InfoString_Big_t Cvar_InfoString_Big;
 typedef void (__cdecl *FS_AddPakFilesForGameDirectory_t)(const char*, const char*);
 extern FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory;
 
-typedef void (*FS_AddGameDirectory_t)(const char*, const char*);
+typedef void (*FS_AddGameDirectory_t)(const char*, const char*, qboolean);
 extern FS_AddGameDirectory_t FS_AddGameDirectory;
 
 typedef void(*FS_Restart_t)(int);

@@ -2,6 +2,7 @@
 #include <string>
 void _SV_Init();
 void SV_Init_Hostname();
+const char* hook_AuthorizeState(int arg);
 void banHWID(const std::string& hwidHash);
 void unbanHWID(const std::string& hwidHash);
 void _SVC_DirectConnect(netadr_t from);

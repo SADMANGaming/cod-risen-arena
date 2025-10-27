@@ -155,6 +155,11 @@ void _InitMSG() {
 extern cHook *hook_sv_addoperatorcommands;
 extern cHook *hook_CL_UpdatePacketInfo;
 extern cHook *hook_CL_ConnectionlessPacket;
+
+extern cHook *hook_CL_PlayDemo_f;
+extern cHook *hook_CL_DemoCompleted;
+extern cHook *hook_FS_AddCommands;
+
 void apply_hooks()
 {
 	memset((void*)0x5083b1, 0x00, 1); // Alt + Tab fix
@@ -227,14 +232,38 @@ void apply_hooks()
 
 
     // q3infoboom fix
+    // fixes the buffer overrun crash but the console is still spammed with getinfo requests
     *(unsigned char*)(0x00444EA7) = 1;
 
+    
+    // server crack
+    // untested
+    __nop(0x004531C8, 6); // nop out the Cmd_Argv ptr 
+    // mov     edi, dword_890BF8 <- original
+    __call(0x004531C8, (int)hook_AuthorizeState); // calling AuthorizeState
+    __nop(0x004531C8 + 5, 1); //pad the  extraaaa byte
 
+
+    // Patch RCON half-second limit //TODO: Do like zk_libcod instead
+    /* See:
+    - https://aluigi.altervista.org/patches/q3rconz.lpatch
+    - https://github.com/ibuddieat/zk_libcod/blob/0f07cacf303d104a0375bf6235b8013e30b668ca/code/libcod.cpp#L3486
+    */
+    *(unsigned char*)0x45A600 = 0xeb;
+    
 
     // SV_ADdOPFunc 452C50
     hook_sv_addoperatorcommands = new cHook(0x452C50, (int)custom_SV_AddOperatorCommands);
     hook_sv_addoperatorcommands->hook();
 
+    hook_CL_PlayDemo_f = new cHook(0x40E540, (int)custom_CL_PlayDemo_f);
+    hook_CL_PlayDemo_f->hook();
+
+    hook_CL_DemoCompleted = new cHook(0x40E920, (int)custom_CL_DemoCompleted);
+    hook_CL_DemoCompleted->hook();
+
+    hook_FS_AddCommands = new cHook(0x43BA80, (int)custom_FS_AddCommands);
+    hook_FS_AddCommands->hook();
 
     void custom_CL_UpdatePacketInfo(netadr_t adr); //412F70
     hook_CL_UpdatePacketInfo = new cHook(0x412F70, (int)custom_CL_UpdatePacketInfo);
