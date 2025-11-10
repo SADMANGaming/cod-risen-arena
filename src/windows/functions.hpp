@@ -1,8 +1,17 @@
 #pragma once
-
+#include <string>
 #include <windows.h>
+#include <map>
+
+
 #define MAX_MSGLEN 16384
 
+
+extern DWORD cgame_mp;
+extern DWORD game_mp;
+
+#define GAME_OFF(x) (game_mp + (x - 0x20000000))
+#define CGAME_OFF(x) (cgame_mp + (x - 0x30000000))
 
 #define __RAVERSION__ "1.00.0"
 #define __RABUILD__ 1000   // current client build
@@ -74,9 +83,17 @@ static void(*Com_Quit_f)() = (void(*)())0x0043a2c0;
 #define cls_numGlobalServerAddresses ((int*)0x15C1008)
 #define cls_pingUpdateSource ((int*)0x15C9C10)
 
+#define cg_refdef_width  (*(int*)CGAME_OFF(0x30209584))
+#define cg_refdef_height (*(int*)CGAME_OFF(0x30209588))
+
+#define CG_SYSCALL ((int(*)(int, ...))CGAME_OFF(0x30074898))
+#define weaponbase (*(char**)CGAME_OFF(0x30209484))
+
+
 #define MAX_QPATH 64
 #define MAX_OSPATH 256
 typedef int fileHandle_t;
+typedef int qhandle_t;
 
 typedef float vec_t;
 typedef vec_t vec2_t[2];
@@ -118,6 +135,208 @@ typedef enum
 	CA_CHALLENGING,
 	CA_CONNECTED,
 } connstate_t;
+
+
+	typedef enum
+	{
+		/*
+		these are taken from 1.5 I have commented out the one's that I haven't used yet.
+		unsure if these are 100% correct as there are differences between versions
+		*/
+		// ...
+		CG_PRINT = 0x0,
+		CG_ERROR = 0x1,
+		CG_GAMEMESSAGE = 0x2,
+		//CG_BOLDGAMEMESSAGE = 0x3,
+		//CG_DEATHMESSAGE = 0x4,
+		//CG_SUBTITLE = 0x5,
+		CG_MILLISECONDS = 0x6,
+		//CG_CVAR_REGISTER = 0x7,
+		//CG_CVAR_UPDATE = 0x8,
+		//CG_CVAR_SET = 0x9,
+		//CG_CVAR_SETVAR = 0xa,
+		//CG_CVAR_VARIABLESTRINGBUFFER = 0xb,
+		//CG_ARGC = 0xc,
+		//CG_ARGV = 0xd,
+		//CG_ARGS = 0xe,
+		//CG_FS_FOPENFILE = 0xf,
+		//CG_FS_READ = 0x10,
+		//CG_FS_WRITE = 0x11,
+		//CG_FS_FCLOSEFILE = 0x12,
+		//CG_FS_GETFILELIST = 0x13,
+		//CG_COM_SAVECVARSTOBUFFER = 0x14,
+		//CG_COM_LOADCVARSFROMBUFFER = 0x15,
+		//CG_SENDCONSOLECOMMAND = 0x16,
+		//CG_ADDCOMMAND = 0x17,
+		//CG_SENDCLIENTCOMMAND = 0x18,
+		//CG_UPDATESCREEN = 0x19,
+		//CG_DRAWNOTIFYLINES = 0x1a,
+		//CG_DRAWBOLDMESSAGES = 0x1b,
+		//CG_DRAWMINICONSOLE = 0x1c,
+		//CG_DRAWSUBTITLES = 0x1d,
+		//CG_DRAWSAY = 0x1e,
+		//CG_CM_LOADMAP = 0x1f,
+		//CG_CM_NUMINLINEMODELS = 0x20,
+		//CG_CM_INLINEMODEL = 0x21,
+		//CG_CM_TEMPBOXMODEL = 0x23,
+		//CG_CM_POINTCONTENTS = 0x24,
+		//CG_CM_TRANSFORMEDPOINTCONTENTS = 0x25,
+		//CG_CM_BOXTRACE = 0x26,
+		//CG_CM_TRANSFORMEDBOXTRACE = 0x27,
+		//CG_CM_CAPSULETRACE = 0x28,
+		//CG_CM_TRANSFORMEDCAPSULETRACE = 0x29,
+		//CG_CM_TEMPCAPSULEMODEL = 0x2a,
+		//CG_R_MARKFRAGMENTS = 0x2b,
+		//CG_R_LOADWORLDMAP = 0x2c,
+		//CG_R_REGISTERMODEL = 0x2d,
+		//CG_R_FINISHLOADINGMODELS = 0x2e,
+		CG_R_REGISTERSHADER = 0x30,
+		//CG_R_GETXMODELBYHANDLE = 0x32,
+		//CG_R_TEXT_WIDTH = 0x34,
+		//CG_R_TEXT_HEIGHT = 0x35,
+		//CG_R_TEXT_PAINT = 0x36,
+		//CG_SE_TRANSLATEREFERENCE = 0x38,
+		//CG_SE_LOCALIZEMESSAGE = 0x39,
+		//CG_SE_PRINTSTRLEN = 0x3a,
+		//CG_SE_READCHARFROMSTRING = 0x3b,
+		//CG_R_CLEARSCENE = 0x3c,
+		//CG_R_ADDREFENTITYTOSCENE = 0x3d,
+		//CG_HUNKUSED = 0x3f,
+		//CG_R_ADDPOLYTOSCENE = 0x40,
+		//CG_R_ADDLIGHTTOSCENE = 0x42,
+		//CG_R_SETFOG = 0x44,
+		//CG_R_RENDERSCENE = 0x45,
+		//CG_R_SAVESCREEN = 0x46,
+		//CG_R_BLENDSAVEDSCREEN = 0x47,
+		CG_R_SETCOLOR = 0x48,
+		CG_R_DRAWSTRETCHPIC = 0x49,
+		//CG_R_DRAWSTRETCHPICROTATE = 0x4b,
+		CG_R_DRAWQUADPIC = 0x4c,
+		//CG_R_MODELBOUNDS = 0x4d,
+		//CG_GETGLCONFIG = 0x4e,
+		//CG_GETGAMESTATE = 0x4f,
+		//CG_GETCURRENTSNAPSHOTNUMBER = 0x50,
+		//CG_GETSNAPSHOT = 0x51,
+		//CG_GETSERVERCOMMAND = 0x52,
+		//CG_GETCURRENTCMDNUMBER = 0x53,
+		//CG_GETUSERCMD = 0x54,
+		//CG_SETUSERCMDVALUE = 0x55,
+		//CG_SETUSERCMDAIMVALUES = 0x56,
+		//CG_SETUSERCMDINSHELLSHOCK = 0x57,
+		CG_R_REGISTERSHADERNOMIP = 0x58,
+		//CG_MEMORYREMAINING = 0x59,
+		//CG_CL_LOOKUPCOLOR = 0x5e,
+		//CG_PC_LOADSOURCE = 0x60,
+		//CG_PC_FREESOURCE = 0x61,
+		//CG_PC_READTOKEN = 0x62,
+		//CG_PC_SOURCEFILEANDLINE = 0x63,
+		//CG_SNAPVECTOR = 0x65,
+		//CG_CIN_PLAYCINEMATIC = 0x67,
+		//CG_CIN_STOPCINEMATIC = 0x68,
+		//CG_CIN_RUNCINEMATIC = 0x69,
+		//CG_CIN_DRAWCINEMATIC = 0x6a,
+		//CG_CIN_SETEXTENTS = 0x6b,
+		//CG_R_TRACKSTATISTICS = 0x6c,
+		//CG_R_PICKSHADER = 0x6d,
+		//CG_UI_LOADMENU = 0x7a,
+		//CG_UI_POPUP = 0x7b,
+		//CG_UI_CLOSEPOPUP = 0x7c,
+		//CG_UI_CLOSEALLMENUS = 0x7d,
+		//CG_UI_GETMAPDISPLAYNAME = 0x7e,
+		//CG_UI_GETGAMETYPEDISPLAYNAME = 0x7f,
+		//CG_CL_GETSERVERIPADDRESS = 0x80,
+		//CG_XANIMPRECACHE = 0x81,
+		//CG_XANIMCREATEANIMS = 0x82,
+		//CG_XANIMCREATE = 0x83,
+		//CG_XANIMCREATETREE = 0x84,
+		//CG_XANIMBLEND = 0x85,
+		//CG_XANIMCLEARGOALWEIGHT = 0x87,
+		//CG_XANIMCLEARTREEGOALWEIGHTS = 0x88,
+		//CG_XANIMCLEARTREEGOALWEIGHTSSTRICT = 0x89,
+		//CG_XANIMSETCOMPLETEGOALWEIGHTKNOBALL = 0x8b,
+		//CG_XANIMSETGOALWEIGHT = 0x8d,
+		//CG_XANIMSETCOMPLETEGOALWEIGHT = 0x8e,
+		//CG_XANIMSETANIMRATE = 0x8f,
+		//CG_XANIMISLOOPED = 0x90,
+		//CG_XANIMISLOOPING = 0x91,
+		//CG_XANIMSETTIME = 0x92,
+		//CG_XANIMGETTIME = 0x93,
+		//CG_XANIMGETWEIGHT = 0x94,
+		//CG_DOBJINVALIDATESKELS = 0x95,
+		//CG_DOBJUPDATEINFO = 0x96,
+		//CG_DOBJGETCLIENTNOTIFYLIST = 0x97,
+		//CG_DOBJCALCANIM = 0x98,
+		//CG_DOBJDISPLAYANIM = 0x99,
+		//CG_XANIMCALCABSDELTA = 0x9b,
+		//CG_XANIMGETRELDELTA = 0x9c,
+		//CG_DOBJGETMATRIXARRAY = 0x9e,
+		//CG_DOBJGETROTTRANSARRAY = 0x9f,
+		//CG_DOBJSETROTTRANSINDEX = 0xa0,
+		//CG_DOBJSETCONTROLROTTRANSINDEX = 0xa1,
+		//CG_GETDOBJ = 0xa2,
+		//CG_DOBJCREATE = 0xa5,
+		//CG_SAFEDOBJFREE = 0xa6,
+		//CG_DOBJCREATESKELFORBONE = 0xa9,
+		//CG_DOBJCREATESKELFORBONES = 0xaa,
+		//CG_DOBJGETHIERARCHYBITS = 0xab,
+		//CG_DOBJCALCSKEL = 0xac,
+		//CG_DOBJGETBONEINDEX = 0xaf,
+		//CG_DOBJGETTREE = 0xb2,
+		//CG_XANIMISPRIMITIVE = 0xb3,
+		//CG_XANIMGETLENGTH = 0xb4,
+		//CG_XANIMHASFINISHED = 0xb5,
+		//CG_XANIMGETNUMCHILDREN = 0xb6,
+		//CG_XANIMGETCHILDAT = 0xb7,
+		//CG_XANIMGETANIMTREESIZE = 0xb8,
+		//CG_XANIMCLONEANIMTREE = 0xb9,
+		//CG_GETSTATSARRAY = 0xbc,
+		//CG_Z_MALLOCINTERNAL = 0xbd,
+		//CG_Z_FREEINTERNAL = 0xbe,
+		//CG_COM_LOADSOUNDALIASES = 0xbf,
+		//CG_COM_SOUNDALIASSTRING = 0xc0,
+		//CG_COM_PICKSOUNDALIAS = 0xc1,
+		//CG_MSS_PLAYSOUNDALIAS = 0xc3,
+		//CG_MSS_PLAYBLENDEDSOUNDALIASES = 0xc4,
+		//CG_SURFACETYPEFROMNAME = 0xc5,
+		//CG_SURFACETYPETONAME = 0xc6,
+		//CG_ADDDEBUGLINE = 0xC7,
+		//CG_GETWEAPONINFOMEMORY = 0xc8,
+		//CG_FREEWEAPONINFOMEMORY = 0xc9,
+		//CG_HUNK_ALLOCINTERNAL = 0xca,
+		//CG_HUNK_ALLOCLOWINTERNAL = 0xcb,
+		//CG_HUNK_ALLOCLOWALIGNINTERNAL = 0xcd,
+		//CG_GETNUMSCRIPTVARS = 0xce,
+		//CG_GETNUMSCRIPTTHREADS = 0xcf
+		//CG_GETSTRINGUSAGE = 0xd0,
+		//CG_SETCLIENTLERPORIGIN = 0xd1,
+		//CG_MSS_SETLISTENER = 0xd2,
+		//CG_MSS_UPDATELOOPINGSOUNDS = 0xd3,
+		//CG_MSS_STOPSOUNDS = 0xd4,
+		//CG_MSS_PLAYMUSICALIAS = 0xd5,
+		//CG_MSS_STOPMUSIC = 0xd6,
+		//CG_MSS_PLAYAMBIENTALIAS = 0xd7,
+		//CG_MSS_FADEALLSOUNDS = 0xd8,
+		//CG_MSS_FADESELECTSOUNDS = 0xd9,
+		//CG_MSS_SETENVIRONMENTEFFECTS = 0xda,
+		//CG_MSS_GETSOUNDOVERLAY = 0xdb,
+		//CG_FX_REGISTEREFFECT = 0xdf,
+		//CG_FX_GETBONEINDEX = 0xe0,
+		//CG_FX_PLAYSIMPLEEFFECTID = 0xe4,
+		//CG_FX_PLAYEFFECTID = 0xe5,
+		//CG_FX_PLAYENTITYEFFECTID = 0xe6,
+		//CG_FX_ADDSCHEDULEDEFFECTS = 0xe7,
+		//CG_FX_INITSYSTEM = 0xe8,
+		//CG_FX_FREESYSTEM = 0xe9,
+		//CG_FX_FREEACTIVE = 0xea,
+		//CG_FX_ADJUSTTIME = 0xeb,
+		//CG_FX_ADJUSTCAMERA = 0xec,
+		//CG_CAPTURNRATE = 0xf1,
+		//CG_SETVIEWANGLES = 0xf2,
+		//CG_SYNCTIMES = 0xf3,
+		//CG_DATETIMESTAMP = 0xf4,
+		//CG_EXECUTESTRING = 0xf5
+		// ...
+	} cgameImport_t;
 
 typedef enum
 {
@@ -344,6 +563,12 @@ typedef enum
 // 	// ...
 // } client_t;
 
+typedef struct customClient_s
+{
+	char* hwid;
+	char* uid;
+} customClient_t;
+
 typedef struct
 {
     playerState_t ps;
@@ -527,12 +752,9 @@ void Info_SetValueForKey(char *s, const char *key, const char *value);
 const char* Info_ValueForKey(const char* s, const char* key); //FIXME: overflow check?
 int Q_stricmpn(const char* s1, const char* s2, int n);
 int Q_stricmp(const char* s1, const char* s2);
+std::string getFormattedDate();
+std::string getFormattedTime();
 
-extern DWORD cgame_mp;
-extern DWORD game_mp;
-
-#define GAME_OFF(x) (game_mp + (x - 0x20000000))
-#define CGAME_OFF(x) (cgame_mp + (x - 0x30000000))
 
 char* Cmd_Argv(int index);
 int Cmd_Argc();
@@ -542,6 +764,8 @@ extern Com_Printf_t Com_Printf;
 typedef void(*Com_DPrintf_t)(const char*, ...);
 extern Com_DPrintf_t Com_DPrintf;
 
+typedef void(*trap_R_stretchpic_t)(float x, float y, float w, float h, float s1, float t1, float s2, float t2, qhandle_t hShader);
+extern trap_R_stretchpic_t trap_R_stretchpic;
 
 typedef void(*Com_Error_t)(int, const char*, ...);
 extern Com_Error_t Com_Error;
@@ -550,6 +774,15 @@ typedef void(*xfunc)(void);
 
 typedef void(*Cmd_AddCommand_t)(const char*, xfunc);
 extern Cmd_AddCommand_t Cmd_AddCommand;
+
+typedef void(*SCR_DrawString_t)(float x, float y, int fontID, float scale, float* color, const char* text, float spaceBetweenChars, int maxChars, int arg9);
+extern SCR_DrawString_t SCR_DrawString;
+
+typedef void (*Cbuf_AddText_t)(const char* text);
+extern Cbuf_AddText_t Cbuf_AddText;
+
+typedef void (*Cbuf_ExecuteText_t)(cbufExec_t exec_when, const char* text);
+extern Cbuf_ExecuteText_t Cbuf_ExecuteText;
 
 typedef void (*SV_DirectConnect_t)(netadr_t from);
 extern SV_DirectConnect_t SV_DirectConnect;
@@ -707,6 +940,7 @@ char* va(const char* format, ...);
 void Q_strncpyz(char *dest, const char *src, int destsize);
 char* Q_CleanStr(char* string, bool colors = false);
 char* Com_CleanHostname(char* hostname, bool colors);
+const char* Com_CleanForFile(const char* input);
 char* Com_CleanMapname(char* mapname);
 const char* Com_GametypeName(char* gt, bool colors = false);
 

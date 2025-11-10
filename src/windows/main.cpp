@@ -12,6 +12,12 @@
 #include "cgame.hpp"
 #include "discord.hpp"
 #include <string>
+#include <thread>
+#include <atomic>
+#include <chrono>
+#include <algorithm>
+
+#include "sniper_scopes.hpp"
 
 extern "C" bool bClosing = false;
 static int(__stdcall *WinMain_original)(HINSTANCE, HINSTANCE, LPSTR, int) = (int(__stdcall*)(HINSTANCE, HINSTANCE, LPSTR, int))0x4640B0;
@@ -159,6 +165,10 @@ extern cHook *hook_CL_ConnectionlessPacket;
 extern cHook *hook_CL_PlayDemo_f;
 extern cHook *hook_CL_DemoCompleted;
 extern cHook *hook_FS_AddCommands;
+extern cHook *hook_RE_EndFrame;
+extern cHook *hook_CL_Connect_f;
+extern cHook *hook_SV_ConnectionlessPacket;
+
 
 void apply_hooks()
 {
@@ -228,6 +238,10 @@ void apply_hooks()
 
     __call(0x004591B3, (int)SV_Init_Hostname);
 
+    // Auto updater call at CL_Init()
+    __jmp(0x411650, (int)CL_CheckAutoUpdate);
+    __jmp(0x4117E0, (int)CL_GetAutoUpdate_f);
+
     // todo: fix client crash when player is already banned and trying to connect to local server
 
 
@@ -273,6 +287,10 @@ void apply_hooks()
     hook_CL_ConnectionlessPacket = new cHook(0x4109D0, (int)custom_CL_ConnectionlessPacket);
     hook_CL_ConnectionlessPacket->hook();
 
+    void custom_SV_ConnectionlessPacket(netadr_t from, msg_t* msg);
+    hook_SV_ConnectionlessPacket = new cHook(0x45A820, (int)custom_SV_ConnectionlessPacket);
+    hook_SV_ConnectionlessPacket->hook();
+
     char* __cdecl CL_SetServerInfo_HostnameStrncpy(char*, char*, size_t);
     __call(0x412A2C, (int)CL_SetServerInfo_HostnameStrncpy);
     
@@ -281,6 +299,20 @@ void apply_hooks()
 
 	void _Com_Init(char *commandLine);
     __call(0x004641dc, (int)_Com_Init);
+
+    
+    void CG_DrawWeapReticle_Stub(float x, float y, float w, float h, float s1, float t1, float s2, float t2, qhandle_t hShader);
+
+	__call(CGAME_OFF(0x30016114), (int)CG_DrawWeapReticle_Stub);    // top left quadrant - used to change scope
+	// __call(CGAME_OFF(0x30016134), (int)CG_DrawReticleParts_Stub);   // quadrant 2
+	// __call(CGAME_OFF(0x30016153), (int)CG_DrawReticleParts_Stub);   // quadrant 3
+	// __call(CGAME_OFF(0x30016173), (int)CG_DrawReticleParts_Stub);   // quadrant 4
+	// __call(CGAME_OFF(0x300163ad), (int)CG_DrawReticleParts_Stub);   // fg42 vertical
+	// __call(CGAME_OFF(0x30016406), (int)CG_DrawReticleParts_Stub);   // fg42 left
+	// __call(CGAME_OFF(0x30016494), (int)CG_DrawReticleParts_Stub);   // springfield vertical
+	// __call(CGAME_OFF(0x3001654f), (int)CG_DrawReticleParts_Stub);   // G43 vertical
+	// __call(CGAME_OFF(0x300165a9), (int)CG_DrawReticleParts_Stub);   // G43 left horizontal
+	// __call(CGAME_OFF(0x300165df), (int)CG_DrawReticleParts_Stub);   // fg24 & G43 right, springfield horizontal
 
 	void _CL_Init();
 	__call(0x437B4B, (int)_CL_Init);
@@ -291,6 +323,13 @@ void apply_hooks()
 
 //    void _Com_Frame();
 //    __call(0x046426F, (int)_Com_Frame);
+
+    hook_RE_EndFrame = new cHook(0x004de4b0, (int)custom_RE_EndFrame);
+    hook_RE_EndFrame->hook();
+
+    hook_CL_Connect_f = new cHook(0x0040F6A0, (int)custom_CL_Connect_f);
+    hook_CL_Connect_f->hook();
+
 
 
     __jmp(0x459EE0, (int)custom_SVC_Status);
@@ -410,11 +449,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
     hInst = hInstance;
 
+MessageBoxA(NULL, (std::string("lpCmdLine: ") + lpCmdLine).c_str(), "Debug", MB_OK);
+
     // Custom URL protocol: codra://1.2.3.4 to connect to a server.
     //from cex
 	std::string strCmdLine = std::string(lpCmdLine);
 	if (strCmdLine.rfind("codra://", 0) == 0) {
-		// Remove cod1x:// and ending slash from string.
+		// Remove codra:// and ending slash from string.
 		strCmdLine.erase(0, 8);
 		if (strCmdLine.back() == '/')
 			strCmdLine.pop_back();
@@ -430,6 +471,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	else { // Add the registry keys for the protocol.
 		RegistryAddURLProtocol();
     }
+
+    // CoD4 Style Demo open with CoDMP support
+
 
     void loadRealMSS32();
     loadRealMSS32();

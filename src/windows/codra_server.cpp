@@ -184,6 +184,12 @@ void Cmd_Unban() {
 
     Com_Printf("Client HWID '%s' has been unbanned.\n", hwid);
 }
+
+std::string AdrToStringKey(const netadr_t &adr)
+{
+    return std::string(NET_AdrToString(adr));
+}
+
 extern cvar_t *sv_running;
 extern cvar_t *mapname;
 extern cvar_t *sv_maxclients;
@@ -335,11 +341,32 @@ void _SVC_DirectConnect(netadr_t from)
 	std::string hwid = Info_ValueForKey(userinfo, "cl_hwid");
     std::string uid = Info_ValueForKey(userinfo, "cl_uid");
     const char* protocolcl = Info_ValueForKey(userinfo, "protocol");
+	int qport = atoi( Info_ValueForKey( userinfo, "qport" ) );
 
-    if (strcmp(protocolcl, protocol->string) != 0)
+    // if (strcmp(protocolcl, protocol->string) != 0)
+    // {
+    //     Com_Printf("Connection rejected from a client with protocol: %s\n", protocolcl);
+    // 	NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\nVisit: devcod.pages.dev for more info about Risen Arena mod\n", patchString.c_str()) );
+    //     return;
+    // }
+    
+
+    if(atoi(protocolcl) != protocol->integer)
     {
-        Com_Printf("Connection rejected from a client with protocol: %s\n", protocolcl);
-    	NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n", patchString.c_str()) );
+        const char* msg;
+        switch (atoi(protocolcl))
+        {
+            case 1: msg = "Your CoD1 version is 1.1\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 2: msg = "Your CoD1 version is 1.2\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 3: msg = "Your CoD1 version is 1.3\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 4: msg = "Your CoD1 version is 1.3 beta\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 5: msg = "Your CoD1 version is 1.4\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 6: msg = "Your CoD1 version is 1.5\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            default: msg = "Your CoD1 version is unknown\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+
+        }
+        Com_DPrintf("    rejected connect from protocol version %i (should be %i)\n", atoi(protocolcl), protocol->integer);
+        NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n%s\n", patchString.c_str(), msg) );
         return;
     }
 
@@ -376,5 +403,32 @@ void _SVC_DirectConnect(netadr_t from)
 
 	Com_Printf("Connection accepted from UID: %s\n", uid.c_str());
 
+
 	SV_DirectConnect(from);
+}
+
+
+cHook* hook_SV_ConnectionlessPacket;
+void custom_SV_ConnectionlessPacket(netadr_t from, msg_t* msg)
+{
+    hook_SV_ConnectionlessPacket->unhook();
+    void (*SV_ConnectionlessPacket)(netadr_t from, msg_t* msg);
+    *(int *)&SV_ConnectionlessPacket = hook_SV_ConnectionlessPacket->from;
+    SV_ConnectionlessPacket(from, msg);
+    hook_SV_ConnectionlessPacket->hook();
+
+    const char *cmdx = (const char *)msg->data;
+    std::string adrKey = AdrToStringKey(from);
+
+    //Cmd_TokenizeString(cmdx, 0);
+
+    const char* cmd = Cmd_Argv(0);
+
+    if (Q_stricmp(cmd, "uidResponse") == 0)
+	{
+    }
+
+	if(Q_stricmp(cmd, "hwidResponse") == 0)
+	{
+	}
 }
