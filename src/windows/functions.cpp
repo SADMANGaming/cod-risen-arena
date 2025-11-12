@@ -3,16 +3,26 @@
 #include <windows.h>
 #include "functions.hpp"
 #include <cctype>
-
+#include <string>
+#include <ctime>        // for time_t, localtime, tm
+#include <sstream>      // for ostringstream
+#include <iomanip> 	// for setw, setfill
 Com_DPrintf_t Com_DPrintf = (Com_DPrintf_t)0x435820;
 Com_Printf_t Com_Printf = (Com_Printf_t)0x4357B0;
 Com_Error_t Com_Error = (Com_Error_t)0x435AD0;
 
+
+
 Cmd_AddCommand_t Cmd_AddCommand = (Cmd_AddCommand_t)0x428840;
 Cmd_TokenizeString_t Cmd_TokenizeString = (Cmd_TokenizeString_t)0x4286D0;
 
+Cbuf_AddText_t Cbuf_AddText = (Cbuf_AddText_t)0x4281A0;
+Cbuf_ExecuteText_t Cbuf_ExecuteText = (Cbuf_ExecuteText_t)0x428A80;
+SCR_DrawString_t SCR_DrawString = (SCR_DrawString_t)0x004df570;
+
 idkwhat_t idkwhat = (idkwhat_t)0x4483F0;
 NET_CompareBaseAdr_t NET_CompareBaseAdr = (NET_CompareBaseAdr_t)0x4490C0;
+
 /////////////////// ###### GSC ####### ////////////////////////
 // Scr_ExecThread_t Scr_ExecThread = (Scr_ExecThread_t)0x481E10;
 // Scr_ExecEntThread_t Scr_ExecEntThread = (Scr_ExecEntThread_t)0x481EC0;
@@ -50,19 +60,49 @@ Info_SetValueForKey_Big_t Info_SetValueForKey_Big = (Info_SetValueForKey_Big_t)0
 Cmd_RemoveCommand_t Cmd_RemoveCommand = (Cmd_RemoveCommand_t)0x428990;
 ////////////////////////////////////////////////////////////////////////
 
+
+std::string getFormattedDate()
+{
+    time_t now = time(nullptr);            // current time
+    tm* localTime = localtime(&now);       // convert to local time
+
+    const char* months[] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+
+    std::ostringstream oss;
+    oss << localTime->tm_mday << "_"
+        << months[localTime->tm_mon] << "_"
+        << (1900 + localTime->tm_year);
+
+    return oss.str();
+}
+std::string getFormattedTime()
+{
+    time_t now = time(nullptr);
+    tm* localTime = localtime(&now);
+
+    std::ostringstream oss;
+    oss << std::setw(2) << std::setfill('0') << localTime->tm_hour << "_"
+        << std::setw(2) << std::setfill('0') << localTime->tm_min;
+
+    return oss.str();
+}
+
 #include <stdio.h>
 char* va(const char* format, ...)
 {
 	va_list argptr;
 #define MAX_VA_STRING 32000
 	static char temp_buffer[MAX_VA_STRING];
-	static char string[MAX_VA_STRING]; // in case va is called by nested functions
+	static char string[MAX_VA_STRING];
 	static int index = 0;
 	char* buf;
 	int len;
 
 	va_start(argptr, format);
-	vsnprintf(temp_buffer, sizeof(temp_buffer), format, argptr); // ✅ correct function & usage
+	vsnprintf(temp_buffer, sizeof(temp_buffer), format, argptr);
 	va_end(argptr);
 
 	len = strlen(temp_buffer);
@@ -422,6 +462,43 @@ char* Com_CleanHostname(char* string, bool colors) {
 	}
 
 	return hostname;
+}
+
+const char* Com_CleanForFile(const char* input)
+{
+    static std::string result; // static so we can return const char*
+    result.clear();
+
+    bool lastWasSpace = false;
+
+    for (size_t i = 0; input[i]; ++i) {
+        char c = input[i];
+
+        // Skip illegal characters
+        if (c == '<' || c == '>' || c == ':' || c == '"' || c == '/' ||
+            c == '\\' || c == '|' || c == '?' || c == '*') {
+            continue;
+        }
+
+        if (isspace(static_cast<unsigned char>(c))) {
+            if (!lastWasSpace) {
+                // Replace first space in a sequence with '_'
+                result += '_';
+                lastWasSpace = true;
+            }
+            // Otherwise skip multiple spaces
+        } else {
+            result += c;
+            lastWasSpace = false;
+        }
+    }
+
+    // Remove trailing underscores (optional)
+    while (!result.empty() && result.back() == '_') {
+        result.pop_back();
+    }
+
+    return result.c_str();
 }
 
 char* Com_CleanMapname(char* mapname) {

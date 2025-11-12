@@ -19,17 +19,20 @@ cvar_t* cg_discord;
 cvar_t* cl_master;
 cvar_t* devcod_master;
 cvar_t* cl_uid;
-
+cvar_t* cl_branding;
 cvar_t* cl_updateavailable;
 cvar_t* cl_updateversion;
 cvar_t* cl_updateoldversion;
 cvar_t* cl_updatefiles;
-
+cvar_t* cl_autorecord;
 extern cvar_t* fs_basepath;
+
+static bool freezeDetectionStarted = false;
+
 
 void _CL_Init(void)
 {
-	CL_UpdateReq();
+//	CL_UpdateReq();
 
 	cl_updateavailable = Cvar_Get("cl_updateavailable", /*isUpdateable()*/"0", 64);
   	cl_updateoldversion = Cvar_Get("cl_updateoldversion", __RAVERSION__, 64);
@@ -46,7 +49,6 @@ void _CL_Init(void)
 
 	cl_hwid = Cvar_Get("cl_hwid", generateHWID().c_str(), CVAR_USERINFO | CVAR_ROM);
 
-
 	com_cl_running = Cvar_Get("cl_running", "0", CVAR_ROM);
 	cl_running = Cvar_FindVar("cl_running");
 	cl_freezeDetect = Cvar_Get("cl_freezeDetect", "1", CVAR_ARCHIVE);
@@ -58,17 +60,57 @@ void _CL_Init(void)
 
 	cl_uid = Cvar_Get("cl_uid", std::to_string(CL_GetCDKeyHash()).c_str(), CVAR_ARCHIVE | CVAR_ROM | CVAR_USERINFO);
 
+	cl_branding = Cvar_Get("cl_branding", "1", CVAR_ARCHIVE);
+
+	cl_autorecord = Cvar_Get("cl_autorecord", "0", CVAR_ARCHIVE);
+
 	Cvar_Set("com_hunkmegs", "512");
 
 	Cvar_Set("sv_hostname", "CoDRAHost");
 
 	Cmd_AddCommand("minimize", Cmd_Minimize);
-	Cmd_AddCommand("getautoupdate", Cmd_Update);
-	Cmd_AddCommand("requpdate", CL_UpdateReq);
+	//Cmd_AddCommand("getautoupdate", Cmd_Update);
+
 
 	if (cg_discord->integer)
 		CL_DiscordInitialize();
 // period
+}
+
+
+void draw_branding()
+{
+	const auto x = 1;
+	const auto y = 10;
+	const auto fontID = 1;
+	const auto scale = 0.21f;
+	float color[4] = { 1.f, 1.f, 1.f, 0.80f };
+	float color_shadow[4] = { 0.f, 0.f, 0.f, 0.80f };
+	std::string text = std::string("codra") + ".com";
+
+	SCR_DrawString(x + 1, y + 1, fontID, scale, color_shadow, text.c_str(), NULL, NULL, NULL); // Shadow first
+	SCR_DrawString(x, y, fontID, scale, color, text.c_str(), NULL, NULL, NULL);
+}
+
+cHook *hook_RE_EndFrame;
+void custom_RE_EndFrame(int* frontEndMsec, int* backEndMsec)
+{
+    hook_RE_EndFrame->unhook();
+    void (*RE_EndFrame)(int* frontEndMsec, int* backEndMsec);
+    *(int *)&RE_EndFrame = hook_RE_EndFrame->from;
+    RE_EndFrame(frontEndMsec, backEndMsec);
+	hook_RE_EndFrame->hook();
+
+    if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted) {
+        InitFreezeDetection();
+        freezeDetectionStarted = true;
+    }
+
+    if (cl_freezeDetect->integer == 1) {
+        OnFrame();
+    }
+
+	draw_branding();
 }
 
 cvar_t *sv_running;
@@ -88,10 +130,10 @@ void _Com_Init(char *commandLine)
 	mapname = Cvar_FindVar("mapname");
 	sv_maxclients = Cvar_FindVar("sv_maxclients");
 
-	Cvar_Set("nextmap", "cinematic devcod_logo.roq");
+	Cbuf_AddText("cinematic devcod_logo.roq");
 }
 
-static bool freezeDetectionStarted = false;
+bool alreadyRecording = false;
 void _CL_Frame(int msec) {
     void(*call)(int);
     *(DWORD*)&call = 0x411280;
@@ -99,15 +141,37 @@ void _CL_Frame(int msec) {
     if (!cl_running->integer)
         return;
 
+	if(*cls_state == 6 && cl_autorecord->integer && alreadyRecording == false && *clc_demoplaying == 0)
+	{
+		alreadyRecording = true;
+		char* info = clc_stringData + clc_stringOffsets[0];
+		const char* hostname_p = Info_ValueForKey(info, "sv_hostname");
+		char hostname[64] = { 0 };
+		Q_strncpyz(hostname, hostname_p, sizeof(hostname));
+		Cbuf_AddText(va("record CoDRA_%s_%s_%s\n", Com_CleanForFile(Com_CleanHostname(hostname, false)), getFormattedDate().c_str(), getFormattedTime().c_str()));
+	}
 
-    if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted && *cls_state == 6) {
-        InitFreezeDetection();
-        freezeDetectionStarted = true;
-    }
+	if(*cls_state != 6 && alreadyRecording == true && cl_autorecord->integer)
+	{
+		alreadyRecording = false;
+		Cbuf_AddText(va("stoprecord\n"));
+	}
 
-    if (cl_freezeDetect->integer == 1) {
-        OnFrame();
-    }
+	if(!cl_autorecord->integer && alreadyRecording)
+	{
+		Cbuf_AddText(va("stoprecord\n"));
+		alreadyRecording = false;
+	}
+
+
+    // if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted && *cls_state == 6) {
+    //     InitFreezeDetection();
+    //     freezeDetectionStarted = true;
+    // }
+
+    // if (cl_freezeDetect->integer == 1) {
+    //     OnFrame();
+    // }
 
 	if (cg_discord->integer)
 		CL_DiscordFrame();
@@ -210,48 +274,35 @@ uint64_t CL_GetCDKeyHash()
     return val % 1000000000000000ULL;
 }
 
+cHook* hook_CL_Connect_f;
+void custom_CL_Connect_f()
+{
+	hook_CL_Connect_f->unhook();
+	void (*CL_Connect_f)();
+	*(int *)&CL_Connect_f = hook_CL_Connect_f->from;
+	CL_Connect_f();
+	hook_CL_Connect_f->hook();
+
+	netadr_t to;
+	NET_StringToAdr(NET_AdrToString(clc_serverAddress), &to);
+	to.type = NA_IP;
+
+	NET_OutOfBandPrint(NS_CLIENT, to, "hwidResponse %s", generateHWID().c_str());
+	NET_OutOfBandPrint(NS_CLIENT, to, "uidResponse %s", std::to_string(CL_GetCDKeyHash()).c_str());
+}
 
 cHook* hook_CL_ConnectionlessPacket;
-
 void custom_CL_ConnectionlessPacket(netadr_t from, msg_t* msg)
 {
     hook_CL_ConnectionlessPacket->unhook();
     void (*CL_ConnectionlessPacket)(netadr_t from, msg_t* msg);
     *(int *)&CL_ConnectionlessPacket = hook_CL_ConnectionlessPacket->from;
     CL_ConnectionlessPacket(from, msg);
-/*
-    Com_Printf("=== CONNECTIONLESS PACKET RECEIVED ===\n");
-    Com_Printf("From: %s\n", NET_AdrToString(from));
-    //Com_Printf("Raw packet payload: %s\n", buffer);
-
+    hook_CL_ConnectionlessPacket->hook();
 
     const char *cmdx = (const char *)msg->data;
-    Cmd_TokenizeString(cmdx, 0);
+    //Cmd_TokenizeString(cmdx, 0);
 
     const char* cmd = Cmd_Argv(0);
-    Com_Printf("Arg count: %d\n", Cmd_Argc());
 
-    Com_Printf("Command: %s\n", cmd ? cmd : "NULL");
-
-    for (int i = 0; i < Cmd_Argc(); i++)
-    {
-        const char* arg = Cmd_Argv(i);
-        Com_Printf("Arg %d: %s\n", i, arg ? arg : "NULL");
-    }
-
-    // Only handle updateResponse
-    if (Q_stricmp(cmd, "updateResponse") == 0) {
-        const char* arg1 = Cmd_Argv(1);
-        const char* arg2 = Cmd_Argv(2);
-        const char* arg3 = Cmd_Argv(3);
-
-        Com_Printf("***** UPDATE RESPONSE DETECTED! *****\n");
-        Com_Printf("Arg1: %s\n", arg1 ? arg1 : "NULL");
-        Com_Printf("Arg2: %s\n", arg2 ? arg2 : "NULL");
-        Com_Printf("Arg3: %s\n", arg3 ? arg3 : "NULL");
-
-        // If you have a handler function, call it here:
-        // CL_UpdateInfoPacket(from, buffer);
-    }
-        */
 }

@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <windows.h>
 
 #ifdef _WIN32
 #define JUNK_CODE_ONE        \
