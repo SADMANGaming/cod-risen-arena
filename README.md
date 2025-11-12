@@ -12,7 +12,6 @@ This mod brings extra stuffs to the game.
 ---
 
 ## ✨ Features  
-* Planned:
 * New engine core features:
   - New cvars ✅
   - HWID ✅
@@ -25,15 +24,17 @@ This mod brings extra stuffs to the game.
   - UID based on CD-Key hash ✅
   - Discord RPC ✅
   - ``SVC_Status``/``getstatus`` sends UID ✅
-  - ``status`` command now shows UID ✅ 
+  - ``status`` command now shows UID ✅
+  - New reticle support (uses single whole image to draw reticle)
 
 * New assets:
   - New maps
-  - New UI ✅
-  - New weapons ✅
-  - New multiplayer Features (anti fast fire, Anticamp, etc) ✅
-  - New gametypes ✅
-  - New assets/textures(skies) ✅
+  - New UI 
+  - New weapons 
+  - New multiplayer Features (anti fast fire, Anticamp, etc) 
+  - New gametypes 
+  - New assets/textures(skies)
+  - New reticles from UO and CoD2
   - ... 
 
 ---
