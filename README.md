@@ -38,7 +38,11 @@ This mod brings extra stuffs to the game.
   - New assets/textures(skies)
   - New reticles from UO and CoD2
   - Cookable grenades
-  - ... 
+  - ...
+ 
+* Todo:
+  - Rawinput support
+  - Sprint
 
 ---
 
