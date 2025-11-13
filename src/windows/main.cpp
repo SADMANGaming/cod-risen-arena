@@ -17,6 +17,9 @@
 #include <chrono>
 #include <algorithm>
 
+#include "ui.hpp"
+#include "game.hpp"
+
 #include "sniper_scopes.hpp"
 
 extern "C" bool bClosing = false;
@@ -72,6 +75,10 @@ HMODULE WINAPI hLoadLibraryA(LPCSTR lpLibFileName) {
 
         if (strstr(lpLibFileName, "cgame_mp") != NULL) {
             CG_Init(pBase);
+        } else if (strstr(lpLibFileName, "ui_mp") != NULL) {
+            UI_Init(pBase);
+        } else if (strstr(lpLibFileName, "game_mp") != NULL) {
+            G_Init(pBase);
         }
     }
 

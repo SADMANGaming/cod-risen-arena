@@ -9,9 +9,11 @@
 
 extern DWORD cgame_mp;
 extern DWORD game_mp;
+extern DWORD ui_mp;
 
 #define GAME_OFF(x) (game_mp + (x - 0x20000000))
 #define CGAME_OFF(x) (cgame_mp + (x - 0x30000000))
+#define UI_OFF(x)	(ui_mp + (x - 0x40000000))
 
 #define __RAVERSION__ "1.00.0"
 #define __RABUILD__ 1000   // current client build
@@ -520,6 +522,14 @@ typedef struct playerState_s
 	byte pad[8188];
 } playerState_t;
 
+typedef struct customPlayerState_s
+{
+    bool sprintActive;
+    bool sprintRequestPending;
+    int sprintTimer;
+} customPlayerState_t;
+
+
 typedef struct usercmd_s
 {
 	int serverTime;
@@ -724,6 +734,10 @@ extern FS_AddPakFilesForGameDirectory_t FS_AddPakFilesForGameDirectory;
 
 typedef void (*FS_AddGameDirectory_t)(const char*, const char*, qboolean);
 extern FS_AddGameDirectory_t FS_AddGameDirectory;
+
+// SV_SendClientcmd 459A90
+typedef void (*SV_SendServerCommand_t)(client_t *cl, int type, const char *fmt, ...);
+extern SV_SendServerCommand_t SV_SendServerCommand;
 
 typedef void(*FS_Restart_t)(int);
 extern FS_Restart_t FS_Restart;

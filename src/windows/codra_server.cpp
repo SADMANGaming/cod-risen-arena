@@ -39,6 +39,168 @@ const char* hook_AuthorizeState(int arg)
     return s;
 }
 
+
+
+
+
+/*
+//g_entities = 2016F220
+// ClientEndFrame = 20026A10
+
+static ucmd_t ucmds[] =
+{
+    {"userinfo",        SV_UpdateUserinfo_f,     },
+    {"disconnect",      SV_Disconnect_f,         },
+    {"cp",              SV_VerifyPaks_f,         },
+    {"vdr",             SV_ResetPureClient_f,    },
+    {"download",        SV_BeginDownload_f,      },
+    {"nextdl",          SV_NextDownload_f,       },
+    {"stopdl",          SV_StopDownload_f,       },
+    {"donedl",          SV_DoneDownload_f,       },
+    {"retransdl",       SV_RetransmitDownload_f, },
+    {"sprint",          UCMD_custom_sprint, },
+    {NULL, NULL}
+};
+
+void custom_ClientSpawn(gentity_t *ent, const float *spawn_origin, const float *spawn_angles)
+{
+    hook_ClientSpawn->unhook();
+    void (*ClientSpawn)(gentity_t *ent, const float *spawn_origin, const float *spawn_angles);
+    *(int*)&ClientSpawn = hook_ClientSpawn->from;
+    ClientSpawn(ent, spawn_origin, spawn_angles);
+    hook_ClientSpawn->hook();
+
+    int clientNum = ent - g_entities;
+
+    // Reset sprint
+    customPlayerState[clientNum].sprintActive = false;
+    customPlayerState[clientNum].sprintRequestPending = false;
+    customPlayerState[clientNum].sprintTimer = 0;
+}
+
+void custom_ClientEndFrame(gentity_t *ent)
+{
+    hook_ClientEndFrame->unhook();
+    void (*ClientEndFrame)(gentity_t *ent);
+    *(int*)&ClientEndFrame = hook_ClientEndFrame->from;
+    ClientEndFrame(ent);
+    hook_ClientEndFrame->hook();
+
+    if (ent->client->sess.sessionState == STATE_PLAYING)
+    {
+        int clientNum = ent - g_entities;
+
+        if(customPlayerState[clientNum].sprintActive)
+            ent->client->ps.speed *= player_sprintSpeedScale->value;
+
+    }
+}
+*/
+/* See:
+- https://github.com/voron00/CoD2rev_Server/blob/b012c4b45a25f7f80dc3f9044fe9ead6463cb5c6/src/bgame/bg_weapons.cpp#L481
+- CoD4 1.7: 080570ae
+*/
+/*
+void PM_UpdateSprint(pmove_t *pmove)
+{
+    int timerMsec;
+    int clientNum;
+    float sprint_time;
+    float sprint_minTime;
+    gentity_t *gentity;
+    client_t *client;
+
+    clientNum = pmove->ps->clientNum;
+    gentity = &g_entities[clientNum];
+    client = &svs.clients[clientNum];
+    sprint_time = player_sprintTime->value * 1000.0;
+    sprint_minTime = player_sprintMinTime->value * 1000.0;
+    
+    if (sprint_time > 0)
+    {
+        if (customPlayerState[clientNum].sprintRequestPending)
+        {
+            if (client->lastUsercmd.forwardmove != KEY_MASK_FORWARD)
+            {
+                customPlayerState[clientNum].sprintRequestPending = false;
+                return;
+            }
+            
+            if ((gentity->client->ps.eFlags & EF_CROUCHING) || (gentity->client->ps.eFlags & EF_PRONE))
+            {
+                G_AddPredictableEvent(gentity, EV_STANCE_FORCE_STAND, 0);
+                return;
+            }
+        }
+        
+        if (customPlayerState[clientNum].sprintActive)
+        {
+            timerMsec = customPlayerState[clientNum].sprintTimer + pml->msec;
+
+            if((gentity->client->ps.eFlags & EF_CROUCHING) || (gentity->client->ps.eFlags & EF_PRONE))
+                customPlayerState[clientNum].sprintActive = false;
+            if(client->lastUsercmd.forwardmove != KEY_MASK_FORWARD)
+                customPlayerState[clientNum].sprintActive = false;
+        }
+        else
+            timerMsec = customPlayerState[clientNum].sprintTimer - pml->msec;
+        
+        if(timerMsec < 0)
+            timerMsec = 0;
+        customPlayerState[clientNum].sprintTimer = timerMsec;
+        
+        if (customPlayerState[clientNum].sprintRequestPending)
+        {
+            if(gentity->s.groundEntityNum == 1023)
+                return; // Player is in air, wait for landing
+            else if(customPlayerState[clientNum].sprintTimer < (sprint_time - sprint_minTime))
+                customPlayerState[clientNum].sprintActive = true; // Allow sprint
+            customPlayerState[clientNum].sprintRequestPending = false;
+        }
+        else if(customPlayerState[clientNum].sprintActive && customPlayerState[clientNum].sprintTimer > sprint_time)
+            customPlayerState[clientNum].sprintActive = false; // Reached max time, disable sprint
+    }
+    else
+    {
+        customPlayerState[clientNum].sprintActive = false;
+        customPlayerState[clientNum].sprintTimer = 0;
+    }
+}
+
+void custom_PmoveSingle(pmove_t *pmove)
+{
+    hook_PmoveSingle->unhook();
+    void (*PmoveSingle)(pmove_t *pmove);
+    *(int*)&PmoveSingle = hook_PmoveSingle->from;
+    PmoveSingle(pmove);
+    hook_PmoveSingle->hook();
+
+    PM_UpdateSprint(pmove);
+}
+
+
+void UCMD_custom_sprint(client_t *cl)
+{
+    int clientNum = cl - svs.clients;
+    if (!player_sprint->integer)
+    {
+        std::string message = "e \"";
+        message += "Sprint is not enabled on this server.";
+        message += "\"";
+        SV_SendServerCommand(cl, SV_CMD_CAN_IGNORE, message.c_str());
+        return;
+    }
+    
+    if(customPlayerState[clientNum].sprintActive)
+        customPlayerState[clientNum].sprintActive = false;
+    else if(customPlayerState[clientNum].sprintRequestPending)
+        customPlayerState[clientNum].sprintRequestPending = false;
+    else
+        customPlayerState[clientNum].sprintRequestPending = true;
+}
+*/
+
+
 // HWID BAN LOGIC
 bool checkHWIDBan(const std::string& hwidHash) {
     std::ifstream banFile("ban.txt");

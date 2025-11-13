@@ -3,6 +3,8 @@
 #include "hooks.hpp"
 #include "functions.hpp"
 
+extern cvar_t *cg_fixedAspect;
+
 void CG_DrawWeapReticle_Stub(float x, float y, float w, float h,
                              float s1, float t1, float s2, float t2, qhandle_t hShader)
 {
@@ -77,6 +79,8 @@ void CG_DrawWeapReticle_Stub(float x, float y, float w, float h,
     // Draw the scope
     trap_R_stretchpic(x1, y1, newW, newH, s1, t1, s2, t2, scopeShader);
 }
+
+
 // void CG_DrawWeapReticle_Stub(float x, float y, float w, float h, float s1, float t1, float s2, float t2, qhandle_t hShader)
 // {
 //     float screenW = static_cast<float>(cg_refdef_width);

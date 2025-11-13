@@ -3,7 +3,8 @@ title [devCoD - Risen Arena] WINDOWS - DEBUG
 cls
 
 echo BUILDING...
-rem taskkill /F /IM CoDMP.exe /T
+taskkill /F /IM CoDMP.exe /T
+taskkill /F /IM MoHAA.exe /T
 rd /s /q objects
 md objects
 

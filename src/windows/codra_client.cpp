@@ -27,6 +27,10 @@ cvar_t* cl_updatefiles;
 cvar_t* cl_autorecord;
 extern cvar_t* fs_basepath;
 
+cvar_t* cg_drawFPS;
+cvar_t* cg_drawFPS_x;
+cvar_t* cg_drawFPS_y;
+
 static bool freezeDetectionStarted = false;
 
 
@@ -66,11 +70,13 @@ void _CL_Init(void)
 
 	Cvar_Set("com_hunkmegs", "512");
 
+	cg_drawFPS = Cvar_Get("cg_drawFPS", "0", CVAR_ARCHIVE);
+	cg_drawFPS_x = Cvar_Get("cg_drawFPS_x", "523", CVAR_ARCHIVE);
+	cg_drawFPS_y = Cvar_Get("cg_drawFPS_y", "2", CVAR_ARCHIVE);
+
 	Cvar_Set("sv_hostname", "CoDRAHost");
 
 	Cmd_AddCommand("minimize", Cmd_Minimize);
-	//Cmd_AddCommand("getautoupdate", Cmd_Update);
-
 
 	if (cg_discord->integer)
 		CL_DiscordInitialize();
@@ -80,13 +86,14 @@ void _CL_Init(void)
 
 void draw_branding()
 {
+	
 	const auto x = 1;
 	const auto y = 10;
 	const auto fontID = 1;
 	const auto scale = 0.21f;
 	float color[4] = { 1.f, 1.f, 1.f, 0.80f };
 	float color_shadow[4] = { 0.f, 0.f, 0.f, 0.80f };
-	std::string text = std::string("codra") + ".com";
+	std::string text = std::string("devcod.pages.dev\nCoD: Risen Arena");
 
 	SCR_DrawString(x + 1, y + 1, fontID, scale, color_shadow, text.c_str(), NULL, NULL, NULL); // Shadow first
 	SCR_DrawString(x, y, fontID, scale, color, text.c_str(), NULL, NULL, NULL);
@@ -98,8 +105,10 @@ void custom_RE_EndFrame(int* frontEndMsec, int* backEndMsec)
     hook_RE_EndFrame->unhook();
     void (*RE_EndFrame)(int* frontEndMsec, int* backEndMsec);
     *(int *)&RE_EndFrame = hook_RE_EndFrame->from;
+	draw_branding();
     RE_EndFrame(frontEndMsec, backEndMsec);
 	hook_RE_EndFrame->hook();
+	
 
     if (cl_freezeDetect->integer == 1 && !freezeDetectionStarted) {
         InitFreezeDetection();
@@ -109,8 +118,6 @@ void custom_RE_EndFrame(int* frontEndMsec, int* backEndMsec)
     if (cl_freezeDetect->integer == 1) {
         OnFrame();
     }
-
-	draw_branding();
 }
 
 cvar_t *sv_running;

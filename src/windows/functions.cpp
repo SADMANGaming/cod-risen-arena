@@ -12,6 +12,7 @@ Com_Printf_t Com_Printf = (Com_Printf_t)0x4357B0;
 Com_Error_t Com_Error = (Com_Error_t)0x435AD0;
 
 
+SV_SendServerCommand_t SV_SendServerCommand = (SV_SendServerCommand_t)0x459A90;
 
 Cmd_AddCommand_t Cmd_AddCommand = (Cmd_AddCommand_t)0x428840;
 Cmd_TokenizeString_t Cmd_TokenizeString = (Cmd_TokenizeString_t)0x4286D0;
