@@ -25,7 +25,9 @@ This mod brings extra stuffs to the game.
   - Discord RPC ✅
   - ``SVC_Status``/``getstatus`` sends UID ✅
   - ``status`` command now shows UID ✅
-  - New reticle support (uses single whole image to draw reticle)
+  - New reticle support (uses single whole image to draw reticle) ✅
+  - CoD2 style FPS counter (when your fps is under 60 it shows in red color) ✅
+  - Speedometer ✅
 
 * New assets:
   - New maps
@@ -35,6 +37,7 @@ This mod brings extra stuffs to the game.
   - New gametypes 
   - New assets/textures(skies)
   - New reticles from UO and CoD2
+  - Cookable grenades
   - ... 
 
 ---
