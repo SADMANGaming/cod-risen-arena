@@ -62,6 +62,8 @@ Discord Account: **.sadman_**
 - codextended-client
 - ChatGPT
 - c1cx/iw1x-client
+- iw1x-server
+- brutal
 - Quake III Arena
 - Ghidra/IDA
 - eyza/CoD2x
