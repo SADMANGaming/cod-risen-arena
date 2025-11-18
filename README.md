@@ -28,6 +28,7 @@ This mod brings extra stuffs to the game.
   - New reticle support (uses single whole image to draw reticle) ✅
   - CoD2 style FPS counter (when your fps is under 60 it shows in red color) ✅
   - Speedometer ✅
+  - Sprint ✅
 
 * New assets:
   - New maps
@@ -42,7 +43,6 @@ This mod brings extra stuffs to the game.
  
 * Todo:
   - Rawinput support
-  - Sprint
 
 ---
 
@@ -60,7 +60,7 @@ Discord Account: **.sadman_**
 
 ## 🙌 Credits  
 - codextended-client
-- ChatGPT
+- ChatGPT/Claude
 - c1cx/iw1x-client
 - iw1x-server
 - brutal
