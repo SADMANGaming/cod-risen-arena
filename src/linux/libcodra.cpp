@@ -43,6 +43,10 @@ cvar_t *fs_basegame;
 
 // custom
 cvar_t *sv_cracked;
+cvar_t *player_sprint;
+cvar_t *player_sprintMinTime;
+cvar_t *player_sprintSpeedScale;
+cvar_t *player_sprintTime;
 
 // Game lib objects
 gentity_t *g_entities;
@@ -131,6 +135,9 @@ customPlayerState_t customPlayerState[MAX_CLIENTS];
 cHook *hook_Com_Init;
 cHook *hook_SV_AddOperatorCommands;
 cHook *hook_Sys_LoadDll;
+cHook *hook_PmoveSingle;
+cHook *hook_ClientEndFrame;
+cHook *hook_ClientSpawn;
 
 #define __RAVERSION__ "1.00.0"
 
@@ -247,6 +254,10 @@ void custom_Com_Init(char *commandLine)
    
     Cvar_Get("shortversion", "1.00.0", CVAR_SERVERINFO | CVAR_ARCHIVE);
     
+    player_sprint = Cvar_Get("player_sprint", "0", CVAR_ARCHIVE);
+    player_sprintMinTime = Cvar_Get("player_sprintMinTime", "1.0", CVAR_ARCHIVE);
+    player_sprintSpeedScale = Cvar_Get("player_sprintSpeedScale", "1.5", CVAR_ARCHIVE);
+    player_sprintTime = Cvar_Get("player_sprintTime", "4.0", CVAR_ARCHIVE);
     
     sv_cracked = Cvar_Get("sv_cracked", "0", CVAR_ARCHIVE);
 
@@ -294,8 +305,174 @@ int custom_G_LocalizedStringIndex(const char *string)
 
 
 
+//sprint
+void UCMD_custom_sprint(client_t *cl);
+static ucmd_t ucmds[] =
+{
+    {"userinfo",        SV_UpdateUserinfo_f,     },
+    {"disconnect",      SV_Disconnect_f,         },
+    {"cp",              SV_VerifyPaks_f,         },
+    {"vdr",             SV_ResetPureClient_f,    },
+    {"download",        SV_BeginDownload_f,      },
+    {"nextdl",          SV_NextDownload_f,       },
+    {"stopdl",          SV_StopDownload_f,       },
+    {"donedl",          SV_DoneDownload_f,       },
+    {"retransdl",       SV_RetransmitDownload_f, },
+    {"sprint",          UCMD_custom_sprint, },
+    {NULL, NULL}
+};
+/* See:
+- https://github.com/voron00/CoD2rev_Server/blob/b012c4b45a25f7f80dc3f9044fe9ead6463cb5c6/src/bgame/bg_weapons.cpp#L481
+- CoD4 1.7: 080570ae
+*/
+void PM_UpdateSprint(pmove_t *pmove)
+{
+    int timerMsec;
+    int clientNum;
+    float sprint_time;
+    float sprint_minTime;
+    gentity_t *gentity;
+    client_t *client;
 
+    clientNum = pmove->ps->clientNum;
+    gentity = &g_entities[clientNum];
+    client = &svs.clients[clientNum];
+    sprint_time = player_sprintTime->value * 1000.0;
+    sprint_minTime = player_sprintMinTime->value * 1000.0;
+    
+    if (sprint_time > 0)
+    {
+        if (customPlayerState[clientNum].sprintRequestPending)
+        {
+            if (client->lastUsercmd.forwardmove != KEY_MASK_FORWARD)
+            {
+                customPlayerState[clientNum].sprintRequestPending = false;
+                return;
+            }
+            
+            if ((gentity->client->ps.eFlags & EF_CROUCHING) || (gentity->client->ps.eFlags & EF_PRONE))
+            {
+                G_AddPredictableEvent(gentity, EV_STANCE_FORCE_STAND, 0);
+                return;
+            }
+        }
+        
+        if (customPlayerState[clientNum].sprintActive)
+        {
+            timerMsec = customPlayerState[clientNum].sprintTimer + pml->msec;
 
+            if((gentity->client->ps.eFlags & EF_CROUCHING) || (gentity->client->ps.eFlags & EF_PRONE))
+                customPlayerState[clientNum].sprintActive = false;
+            if(client->lastUsercmd.forwardmove != KEY_MASK_FORWARD)
+                customPlayerState[clientNum].sprintActive = false;
+        }
+        else
+            timerMsec = customPlayerState[clientNum].sprintTimer - pml->msec;
+        
+        if(timerMsec < 0)
+            timerMsec = 0;
+        customPlayerState[clientNum].sprintTimer = timerMsec;
+        
+        if (customPlayerState[clientNum].sprintRequestPending)
+        {
+            if(gentity->s.groundEntityNum == 1023)
+                return; // Player is in air, wait for landing
+            else if(customPlayerState[clientNum].sprintTimer < (sprint_time - sprint_minTime))
+                customPlayerState[clientNum].sprintActive = true; // Allow sprint
+            customPlayerState[clientNum].sprintRequestPending = false;
+        }
+        else if(customPlayerState[clientNum].sprintActive && customPlayerState[clientNum].sprintTimer > sprint_time)
+            customPlayerState[clientNum].sprintActive = false; // Reached max time, disable sprint
+    }
+    else
+    {
+        customPlayerState[clientNum].sprintActive = false;
+        customPlayerState[clientNum].sprintTimer = 0;
+    }
+}
+
+void custom_PmoveSingle(pmove_t *pmove)
+{
+    hook_PmoveSingle->unhook();
+    void (*PmoveSingle)(pmove_t *pmove);
+    *(int*)&PmoveSingle = hook_PmoveSingle->from;
+    PmoveSingle(pmove);
+    hook_PmoveSingle->hook();
+
+    PM_UpdateSprint(pmove);
+}
+
+void custom_ClientEndFrame(gentity_t *ent)
+{
+    hook_ClientEndFrame->unhook();
+    void (*ClientEndFrame)(gentity_t *ent);
+    *(int*)&ClientEndFrame = hook_ClientEndFrame->from;
+    ClientEndFrame(ent);
+    hook_ClientEndFrame->hook();
+
+    if (ent->client->sess.sessionState == STATE_PLAYING)
+    {
+        int clientNum = ent - g_entities;
+
+        if(customPlayerState[clientNum].sprintActive)
+            ent->client->ps.speed *= player_sprintSpeedScale->value;
+    }
+}
+void custom_ClientSpawn(gentity_t *ent, const float *spawn_origin, const float *spawn_angles)
+{
+    hook_ClientSpawn->unhook();
+    void (*ClientSpawn)(gentity_t *ent, const float *spawn_origin, const float *spawn_angles);
+    *(int*)&ClientSpawn = hook_ClientSpawn->from;
+    ClientSpawn(ent, spawn_origin, spawn_angles);
+    hook_ClientSpawn->hook();
+
+    int clientNum = ent - g_entities;
+
+    // Reset sprint
+    customPlayerState[clientNum].sprintActive = false;
+    customPlayerState[clientNum].sprintRequestPending = false;
+    customPlayerState[clientNum].sprintTimer = 0;
+}
+void UCMD_custom_sprint(client_t *cl)
+{
+    int clientNum = cl - svs.clients;
+    if (!player_sprint->integer)
+    {
+        std::string message = "e \"";
+        message += "Sprint is not enabled on this server.";
+        message += "\"";
+        SV_SendServerCommand(cl, SV_CMD_CAN_IGNORE, message.c_str());
+        return;
+    }
+    
+    if(customPlayerState[clientNum].sprintActive)
+        customPlayerState[clientNum].sprintActive = false;
+    else if(customPlayerState[clientNum].sprintRequestPending)
+        customPlayerState[clientNum].sprintRequestPending = false;
+    else
+        customPlayerState[clientNum].sprintRequestPending = true;
+}
+// See https://github.com/voron00/CoD2rev_Server/blob/b012c4b45a25f7f80dc3f9044fe9ead6463cb5c6/src/server/sv_client_mp.cpp#L2128
+void custom_SV_ExecuteClientCommand(client_t *cl, const char *s, qboolean clientOK)
+{
+    ucmd_t *u;
+
+    ((void(*)(int))0x080bfea0)(1); // Unknown function, seems related to scrAnimGlob
+    Cmd_TokenizeString(s);
+
+    for (u = ucmds; u->name; u++)
+    {
+        if (!strcmp(Cmd_Argv(0), u->name))
+        {
+            u->func(cl);
+            break;
+        }
+    }
+
+    if(clientOK)
+        if(!u->name && sv.state == SS_GAME)
+            VM_Call(gvm, GAME_CLIENT_COMMAND, cl - svs.clients);
+}
 
 
 
@@ -548,12 +725,31 @@ void hook_SVC_DirectConnect(netadr_t from)
     const char* protocolcl = Info_ValueForKey(userinfo, "protocol");
     std::string patchString = std::string("RA ") + __RAVERSION__;
 
-    if (strcmp(protocolcl, protocol->string) != 0)
+    // if (strcmp(protocolcl, protocol->string) != 0)
+    // {
+    //     Com_Printf("Connection rejected from a client with protocol: %s\n", protocolcl);
+    // 	NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n", patchString.c_str()) );
+    //     return;
+    // }
+    if(atoi(protocolcl) != protocol->integer)
     {
-        Com_Printf("Connection rejected from a client with protocol: %s\n", protocolcl);
-    	NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n", patchString.c_str()) );
+        const char* msg;
+        switch (atoi(protocolcl))
+        {
+            case 1: msg = "Your CoD1 version is 1.1\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 2: msg = "Your CoD1 version is 1.2\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 3: msg = "Your CoD1 version is 1.3\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 4: msg = "Your CoD1 version is 1.3 beta\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 5: msg = "Your CoD1 version is 1.4\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            case 6: msg = "Your CoD1 version is 1.5\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+            default: msg = "Your CoD1 version is unknown\nYou need CoD1.1 and CoDRA\nVisit: devcod.pages.dev for more info about Risen Arena mod\n"; break;
+
+        }
+        Com_DPrintf("    rejected connect from protocol version %i (should be %i)\n", atoi(protocolcl), protocol->integer);
+        NET_OutOfBandPrint( NS_SERVER, from, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n%s\n", patchString.c_str(), msg) );
         return;
     }
+
 
 	if (hwid.empty()) {
 		hwid = "unknown";
@@ -658,6 +854,30 @@ void custom_SVC_Status(netadr_t from)
 }
 
 
+cHook* hook_SV_ConnectionlessPacket;
+void custom_SV_ConnectionlessPacket(netadr_t from, msg_t* msg)
+{
+    hook_SV_ConnectionlessPacket->unhook();
+    void (*SV_ConnectionlessPacket)(netadr_t from, msg_t* msg);
+    *(int *)&SV_ConnectionlessPacket = hook_SV_ConnectionlessPacket->from;
+    SV_ConnectionlessPacket(from, msg);
+    hook_SV_ConnectionlessPacket->hook();
+
+    const char *cmdx = (const char *)msg->data;
+    //Cmd_TokenizeString(cmdx, 0);
+
+    const char* cmd = Cmd_Argv(0);
+
+    if (Q_stricmp(cmd, "uidResponse") == 0)
+	{
+    	Com_Printf("Server UID Response: %s\n", Cmd_Argv(1));
+    }
+
+	if(Q_stricmp(cmd, "hwidResponse") == 0)
+	{
+		Com_Printf("Server HWID Response: %s\n", Cmd_Argv(1));
+	}
+}
 
 
 
@@ -846,8 +1066,14 @@ void *custom_Sys_LoadDll(const char *name, char *fqpath, int (**entryPoint)(int,
     hook_jmp((int)dlsym(libHandle, "G_LocalizedStringIndex"), (int)custom_G_LocalizedStringIndex);
     hook_jmp((int)dlsym(libHandle, "va"), (int)custom_va);
     
+    // Sprint updating
+    hook_PmoveSingle = new cHook((int)dlsym(libHandle, "PmoveSingle"), (int)custom_PmoveSingle);
+    hook_PmoveSingle->hook();
 
-
+    hook_ClientEndFrame = new cHook((int)dlsym(libHandle, "ClientEndFrame"), (int)custom_ClientEndFrame);
+    hook_ClientEndFrame->hook();
+    hook_ClientSpawn = new cHook((int)dlsym(libHandle, "ClientSpawn"), (int)custom_ClientSpawn);
+    hook_ClientSpawn->hook();
     return libHandle;
 }
 
@@ -887,6 +1113,7 @@ class libcodra
 
         //hook_call(0x806cc80, (int)SV_Init_Protocol);
         hook_call(0x0808A9A4, (int)SV_Init_Protocol);
+        hook_jmp(0x08086d58, (int)custom_SV_ExecuteClientCommand);
 
 
         hook_call(0x08085213, (int)hook_AuthorizeState);
@@ -933,6 +1160,8 @@ class libcodra
         hook_Com_Init->hook();
         hook_SV_AddOperatorCommands = new cHook(0x08084a3c, (int)custom_SV_AddOperatorCommands);
         hook_SV_AddOperatorCommands->hook();
+        hook_SV_ConnectionlessPacket = new cHook(0x808C63C, (int)custom_SV_ConnectionlessPacket);
+        hook_SV_ConnectionlessPacket->hook();
 
     }
 
